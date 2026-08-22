@@ -136,6 +136,7 @@ DISASTER_LABELS = [
     "vehicle accident",
     "damaged infrastructure",
     "emergency rescue operation",
+    "volcanic eruption"
 ]
 
 NON_DISASTER_LABELS = [

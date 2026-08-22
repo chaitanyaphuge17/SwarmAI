@@ -877,6 +877,70 @@ def resource_node(
 
 
 # ============================================================
+# COORDINATOR NODE
+# ============================================================
+
+def coordinator_node(
+    state
+):
+    print(
+        "\n🎯 CoordinatorAgent executing master swarm coordination..."
+    )
+
+    event = state.get("event", {})
+    responses = state.get("responses", [])
+
+    incident_id = event.get("event_id")
+    lat = float(event.get("latitude") or 18.5204)
+    lng = float(event.get("longitude") or 73.8567)
+    disaster_type = event.get("disaster_type") or event.get("disaster") or "Emergency"
+
+    coordinator_hub = {
+        "name": "Incident Command HQ (CoordinatorAgent)",
+        "lat": lat + 0.005,
+        "lng": lng - 0.005,
+        "type": "coordinator_hq",
+        "role": "Master Command & Swarm Orchestration"
+    }
+
+    decision = {
+        "action": f"Master coordination established for {disaster_type}. Synchronized multi-agent response.",
+        "recommendation": "Maintain incident command post, optimize inter-agent communication, and dynamically monitor field deployments.",
+        "command_center": coordinator_hub,
+        "nearby_facilities": [coordinator_hub]
+    }
+
+    response = {
+        "status": "success",
+        "agent": "CoordinatorAgent",
+        "analysis": {
+            "status": "coordinated",
+            "swarm_status": "Master Synchronization Active",
+            "active_agents": len(responses) + 1
+        },
+        "decision": decision
+    }
+
+    if incident_id:
+        WorkflowService.record_event(
+            incident_id=incident_id,
+            sender_agent_id="CoordinatorAgent",
+            receiver_agent_id="System",
+            event_type="plan_coordinated",
+            message=f"CoordinatorAgent synthesized multi-agent response for {disaster_type}.",
+            status="success",
+        )
+
+    return {
+        "responses": [
+            {
+                "CoordinatorAgent": response
+            }
+        ]
+    }
+
+
+# ============================================================
 # MEMORY STORAGE NODE
 # ============================================================
 
@@ -973,8 +1037,8 @@ def memory_storage_node(
                 if pub_id:
                     try:
                         delete_image_from_cloudinary(pub_id)
-                    except Exception as del_err:
-                        print(f"⚠️ Cloudinary rollback failed for {pub_id}: {del_err}")
+                    except Exception as rollback_err:
+                        print(f"❌ Rollback failed for {pub_id}: {rollback_err}")
 
 
     print(
@@ -1021,6 +1085,11 @@ builder.add_node(
 builder.add_node(
     "ResourceAgent",
     resource_node
+)
+
+builder.add_node(
+    "CoordinatorAgent",
+    coordinator_node
 )
 
 builder.add_node(
@@ -1089,11 +1158,21 @@ builder.add_edge(
 
 
 # ============================================================
-# RESOURCE → MEMORY STORAGE
+# RESOURCE → COORDINATOR
 # ============================================================
 
 builder.add_edge(
     "ResourceAgent",
+    "CoordinatorAgent"
+)
+
+
+# ============================================================
+# COORDINATOR → MEMORY STORAGE
+# ============================================================
+
+builder.add_edge(
+    "CoordinatorAgent",
     "MemoryStorage"
 )
 

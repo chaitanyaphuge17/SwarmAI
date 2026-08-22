@@ -17,33 +17,33 @@ export default function AnalysisScreen({ location = "" }) {
       id: 1,
       title: "Analyzing incident",
       desc: "Evaluating photographic evidence, damage patterns, and visual severity indicators.",
-      icon: <FaSearch className="text-red-400 text-sm" />,
+      icon: <FaSearch className="text-blue-600 text-xs" />,
     },
     {
       id: 2,
       title: "Assessing impact",
       desc: "Estimating evacuation necessity, casualty impact, and transport disruption.",
-      icon: <FaChartLine className="text-amber-400 text-sm" />,
+      icon: <FaChartLine className="text-amber-600 text-xs" />,
     },
     {
       id: 3,
       title: "Reviewing historical incidents",
       desc: "Correlating situational data against past disaster precedents in memory.",
-      icon: <FaHistory className="text-cyan-400 text-sm" />,
+      icon: <FaHistory className="text-indigo-600 text-xs" />,
     },
     {
       id: 4,
       title: "Preparing response",
       desc: "Synthesizing actionable emergency guidance, optimal routing, and medical readiness.",
-      icon: <FaClipboardList className="text-emerald-400 text-sm" />,
+      icon: <FaClipboardList className="text-emerald-600 text-xs" />,
     },
   ];
 
   const pulseAnimation = shouldReduceMotion
     ? {}
     : {
-        scale: [1, 1.08, 1],
-        opacity: [0.7, 1, 0.7],
+        scale: [1, 1.06, 1],
+        opacity: [0.85, 1, 0.85],
         transition: {
           duration: 2.2,
           repeat: Infinity,
@@ -54,8 +54,8 @@ export default function AnalysisScreen({ location = "" }) {
   const ringAnimation = shouldReduceMotion
     ? {}
     : {
-        scale: [1, 1.4, 1],
-        opacity: [0.4, 0, 0.4],
+        scale: [1, 1.35, 1],
+        opacity: [0.35, 0, 0.35],
         transition: {
           duration: 2.2,
           repeat: Infinity,
@@ -66,52 +66,49 @@ export default function AnalysisScreen({ location = "" }) {
   return (
     <div className="w-full max-w-4xl mx-auto py-6 px-4">
       {/* Top Processing Emblem & Location */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 text-center relative overflow-hidden shadow-2xl">
-        {/* Subtle background glow */}
-        <div className="absolute inset-0 bg-gradient-to-b from-red-950/20 via-transparent to-transparent pointer-events-none" />
-
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 text-center relative overflow-hidden shadow-sm">
         {/* Central Pulse Indicator */}
-        <div className="relative flex items-center justify-center my-4">
+        <div className="relative flex items-center justify-center my-3">
           <motion.div
             animate={ringAnimation}
-            className="absolute w-20 h-20 rounded-full border border-red-500/40"
+            className="absolute w-20 h-20 rounded-full border border-blue-400/40"
           />
           <motion.div
             animate={pulseAnimation}
-            className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-600 to-red-800 text-white flex items-center justify-center shadow-xl shadow-red-950/80 border border-red-500/40 z-10"
+            className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20 border border-blue-500 z-10"
           >
             <FaShieldAlt className="text-2xl" />
           </motion.div>
         </div>
 
-        <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mt-6">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight mt-5">
           SwarmAI Decision Intelligence in Progress
         </h2>
 
-        <p className="text-sm text-slate-400 mt-2 max-w-xl mx-auto">
+        <p className="text-sm text-gray-500 mt-2 max-w-xl mx-auto">
           Coordinating multi-modal analysis, disaster memory correlation, and emergency response planning.
         </p>
 
         {/* Incident Target Badge */}
         {location && (
-          <div className="inline-flex items-center gap-2 px-4 py-2 mt-5 rounded-full bg-slate-950 border border-slate-800 text-slate-300 text-xs font-mono">
+          <div className="inline-flex items-center gap-2 px-4 py-2 mt-5 rounded-full bg-gray-50 border border-gray-200 text-gray-700 text-xs font-mono">
             <FaMapMarkerAlt className="text-red-500" />
-            <span className="text-slate-400">Target Location:</span>
-            <span className="text-white font-semibold">{location}</span>
+            <span className="text-gray-400">Target Location:</span>
+            <span className="text-gray-900 font-bold">{location}</span>
           </div>
         )}
       </div>
 
       {/* Analysis Stages Overview */}
-      <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 sm:p-8 mt-6 shadow-2xl space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 mt-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-gray-200">
           <div className="flex items-center gap-2">
-            <FaSpinner className="animate-spin text-red-500 text-sm" />
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+            <FaSpinner className="animate-spin text-blue-600 text-sm" />
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-900">
               Analysis Workflow
             </span>
           </div>
-          <span className="text-xs text-slate-400 font-mono">
+          <span className="text-xs text-gray-400 font-mono">
             Live Execution
           </span>
         </div>
@@ -120,21 +117,21 @@ export default function AnalysisScreen({ location = "" }) {
           {steps.map((step) => (
             <div
               key={step.id}
-              className="p-4 rounded-xl bg-slate-900/80 border border-slate-800/90 flex items-start gap-3.5"
+              className="p-4 rounded-xl bg-gray-50 border border-gray-200 flex items-start gap-3.5"
             >
-              <div className="p-2 rounded-lg bg-slate-800 border border-slate-700/60 shrink-0 mt-0.5">
+              <div className="p-2.5 rounded-xl bg-white border border-gray-200 shrink-0 mt-0.5 shadow-2xs">
                 {step.icon}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-slate-400 font-semibold">
+                  <span className="text-xs font-mono text-gray-400 font-bold">
                     0{step.id}
                   </span>
-                  <h3 className="text-sm font-semibold text-slate-200 truncate">
+                  <h3 className="text-sm font-bold text-gray-900 truncate">
                     {step.title}
                   </h3>
                 </div>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
                   {step.desc}
                 </p>
               </div>
@@ -142,8 +139,8 @@ export default function AnalysisScreen({ location = "" }) {
           ))}
         </div>
 
-        <div className="pt-4 border-t border-slate-800/80 text-center">
-          <p className="text-xs text-slate-400">
+        <div className="pt-4 border-t border-gray-200 text-center">
+          <p className="text-xs text-gray-500">
             Analysis is processing on the backend. Your actionable disaster response will load automatically upon completion.
           </p>
         </div>

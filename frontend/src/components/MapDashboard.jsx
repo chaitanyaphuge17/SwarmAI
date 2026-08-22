@@ -34,6 +34,9 @@ export default function MapDashboard({
   const facilityMarkersRef =
     useRef([]);
 
+  const agentMarkersRef =
+    useRef([]);
+
   const mapLoadedRef =
     useRef(false);
 
@@ -82,64 +85,29 @@ export default function MapDashboard({
     }
 
 
-    if (
-      !MAPTILER_KEY
-    ) {
+    const styleUrl = MAPTILER_KEY
+      ? `https://api.maptiler.com/maps/dataviz-light/style.json?key=${MAPTILER_KEY}`
+      : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 
-      console.error(
-        "VITE_MAPTILER_KEY is missing"
-      );
+    const map = new maplibregl.Map({
+      container: mapContainer.current,
+      style: styleUrl,
+      center: [73.8567, 18.5204],
+      zoom: 11,
+    });
 
-      return;
-    }
-
-
-    const map =
-      new maplibregl.Map({
-
-        container:
-          mapContainer.current,
-
-        style:
-          `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${MAPTILER_KEY}`,
-
-        center:
-          [73.8567, 18.5204],
-
-        zoom:
-          11,
-
-      });
-
-
-    mapRef.current =
-      map;
-
+    mapRef.current = map;
 
     map.addControl(
-
       new maplibregl.NavigationControl(),
-
       "top-right"
-
     );
 
-
-    map.on(
-      "load",
-      () => {
-
-        mapLoadedRef.current =
-          true;
-
-        setMapReady(true);
-
-        console.log(
-          "Map loaded successfully"
-        );
-
-      }
-    );
+    map.on("load", () => {
+      mapLoadedRef.current = true;
+      setMapReady(true);
+      console.log("Map loaded successfully");
+    });
 
 
     return () => {
@@ -174,7 +142,11 @@ export default function MapDashboard({
       facilityMarkersRef.current =
         [];
 
-      facilityMarkersRef.current =
+      agentMarkersRef.current.forEach(
+        marker => marker.remove()
+      );
+
+      agentMarkersRef.current =
         [];
 
 
@@ -335,27 +307,144 @@ export default function MapDashboard({
 
     };
 
-  const getNearbyFacilities =
-    () => {
+  const normalizeFacilityType = (typeStr) => {
+    const s = String(typeStr || "").toLowerCase();
+    if (s.includes("hospital") || s.includes("medical") || s.includes("clinic") || s.includes("health")) {
+      return "hospital";
+    }
+    if (s.includes("fire") || s.includes("station")) {
+      return "fire_station";
+    }
+    if (s.includes("shelter") || s.includes("camp") || s.includes("relief") || s.includes("hall")) {
+      return "shelter";
+    }
+    return "hospital";
+  };
 
-      const facilities =
-        data?.map?.facilities ||
-        data?.traffic_response?.nearby_facilities ||
-        data?.agents?.TrafficAgent?.traffic_response?.nearby_facilities ||
-        [];
+  const getNearbyFacilities = () => {
+    const rawFacilities = [
+      ...(Array.isArray(data?.map?.facilities) ? data.map.facilities : []),
+      ...(Array.isArray(data?.traffic_response?.nearby_facilities) ? data.traffic_response.nearby_facilities : []),
+      ...(Array.isArray(data?.agents?.TrafficAgent?.traffic_response?.nearby_facilities) ? data.agents.TrafficAgent.traffic_response.nearby_facilities : []),
+      ...(Array.isArray(data?.agents?.MedicalAgent?.decision?.nearby_facilities) ? data.agents.MedicalAgent.decision.nearby_facilities : []),
+      ...(Array.isArray(data?.agents?.MedicalAgent?.nearby_facilities) ? data.agents.MedicalAgent.nearby_facilities : []),
+      ...(Array.isArray(data?.agents?.ResourceAgent?.decision?.nearby_facilities) ? data.agents.ResourceAgent.decision.nearby_facilities : []),
+      ...(Array.isArray(data?.agents?.ResourceAgent?.nearby_facilities) ? data.agents.ResourceAgent.nearby_facilities : []),
+      ...(Array.isArray(data?.agents?.EmergencyAgent?.decision?.nearby_facilities) ? data.agents.EmergencyAgent.decision.nearby_facilities : []),
+    ];
 
-      if (!Array.isArray(facilities)) {
-        return [];
+    const unique = [];
+    const seen = new Set();
+    for (const f of rawFacilities) {
+      if (!f) continue;
+      const lat = Number(f.lat);
+      const lng = Number(f.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      const key = `${lat.toFixed(4)}_${lng.toFixed(4)}_${f.name || f.type}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push({ ...f, lat, lng, normType: normalizeFacilityType(f.type) });
       }
+    }
 
-      return facilities.filter(
-        facility =>
-          Number.isFinite(Number(facility?.lat)) &&
-          Number.isFinite(Number(facility?.lng)) &&
-          (facilityFilter === "all" || facility?.type === facilityFilter)
-      );
+    return unique.filter(facility => {
+      if (facilityFilter === "all") return true;
+      return facility.normType === facilityFilter || facility.type === facilityFilter;
+    });
+  };
 
-    };
+  const getSwarmAgentNodes = () => {
+    const coords = getScenarioCoordinates();
+    if (!coords) return [];
+
+    const baseLat = coords.lat;
+    const baseLng = coords.lng;
+
+    const agents = data?.agents || {};
+
+    const coordinator = agents.CoordinatorAgent || {};
+    const medical = agents.MedicalAgent || {};
+    const resource = agents.ResourceAgent || {};
+    const emergency = agents.EmergencyAgent || {};
+    const traffic = agents.TrafficAgent || {};
+
+    return [
+      {
+        id: "CoordinatorAgent",
+        name: "CoordinatorAgent (Command HQ)",
+        icon: "🎯",
+        badge: "Coordinator HQ",
+        color: "#8b5cf6",
+        type: "coordinator",
+        lat: Number(coordinator.decision?.command_center?.lat) || baseLat + 0.005,
+        lng: Number(coordinator.decision?.command_center?.lng) || baseLng - 0.006,
+        status: "Master Command Active",
+        role: "Emergency Coordinator & Swarm Orchestration",
+        recommendation: coordinator.decision?.recommendation || coordinator.decision?.action || "Synchronizing emergency response, medical triage, and supply logistics.",
+      },
+      {
+        id: "MedicalAgent",
+        name: "MedicalAgent (Field Triage)",
+        icon: "🩺",
+        badge: "Medical Triage",
+        color: "#0d9488",
+        type: "medical",
+        lat: Number(medical.decision?.triage_center?.lat) || Number(medical.decision?.nearby_facilities?.[0]?.lat) || baseLat + 0.004,
+        lng: Number(medical.decision?.triage_center?.lng) || Number(medical.decision?.nearby_facilities?.[0]?.lng) || baseLng + 0.006,
+        status: "Triage Operational",
+        role: "Medical Triage & Field Hospital",
+        recommendation: medical.decision?.recommendation || medical.decision?.action || "Establishing field hospital and allocating emergency beds.",
+      },
+      {
+        id: "ResourceAgent",
+        name: "ResourceAgent (Supply Staging)",
+        icon: "📦",
+        badge: "Supply Depot",
+        color: "#f59e0b",
+        type: "resource",
+        lat: Number(resource.decision?.staging_area?.lat) || Number(resource.decision?.nearby_facilities?.[0]?.lat) || baseLat - 0.006,
+        lng: Number(resource.decision?.staging_area?.lng) || Number(resource.decision?.nearby_facilities?.[0]?.lng) || baseLng - 0.007,
+        status: "Supplies Mobilized",
+        role: "Supply & Logistics Staging Depot",
+        recommendation: resource.decision?.recommendation || resource.decision?.action || "Ration kits, emergency generators, and water supply staged.",
+      },
+      {
+        id: "EmergencyAgent",
+        name: "EmergencyAgent (Ops Post)",
+        icon: "🚨",
+        badge: "Emergency Ops",
+        color: "#ef4444",
+        type: "emergency",
+        lat: baseLat - 0.005,
+        lng: baseLng + 0.005,
+        status: "Hazard Command Active",
+        role: "Rapid Hazard Assessment & Rescue Command",
+        recommendation: emergency.decision?.recommendation || emergency.decision?.action || "Disaster hazard perimeter secured. Rescue crews deployed.",
+      },
+      {
+        id: "TrafficAgent",
+        name: "TrafficAgent (Routing Post)",
+        icon: "🚦",
+        badge: "Traffic Control",
+        color: "#2563eb",
+        type: "traffic",
+        lat: baseLat + 0.002,
+        lng: baseLng - 0.009,
+        status: "Corridor Managed",
+        role: "Traffic Advisory & Evacuation Routing",
+        recommendation: traffic.decision?.recommendation || traffic.decision?.action || "Emergency green corridor maintained for priority transport.",
+      },
+    ];
+  };
+
+  // Re-render facility & agent markers whenever facilityFilter, data, or mapReady changes
+  useEffect(() => {
+    if (!mapRef.current || !mapLoadedRef.current) return;
+    addFacilityMarkers(getNearbyFacilities());
+    const agentNodes = getSwarmAgentNodes();
+    addAgentMarkers(agentNodes);
+    addSwarmNetworkLines(agentNodes);
+  }, [facilityFilter, data, mapReady]);
 
 
   // =========================================================
@@ -933,6 +1022,10 @@ export default function MapDashboard({
         getNearbyFacilities()
       );
 
+      const swarmNodes = getSwarmAgentNodes();
+      addAgentMarkers(swarmNodes);
+      addSwarmNetworkLines(swarmNodes);
+
 
       fitToRoute(
         routeCoords
@@ -1489,61 +1582,184 @@ export default function MapDashboard({
 
     };
 
-  const addFacilityMarkers =
-    (facilities) => {
+  const addFacilityMarkers = (facilities) => {
+    const map = mapRef.current;
+    if (!map) return;
 
-      const map = mapRef.current;
+    facilityMarkersRef.current.forEach(marker => marker.remove());
+    facilityMarkersRef.current = [];
 
-      if (!map) return;
+    facilities.forEach(facility => {
+      const normType = facility.normType || normalizeFacilityType(facility.type);
+      const isFire = normType === "fire_station";
+      const isShelter = normType === "shelter";
 
-      facilityMarkersRef.current.forEach(
-        marker => marker.remove()
-      );
+      const element = document.createElement("div");
+      element.className = "custom-map-marker";
+      element.textContent = isFire ? "🚒" : isShelter ? "🏠" : "🏥";
+      element.style.width = "38px";
+      element.style.height = "38px";
+      element.style.display = "flex";
+      element.style.alignItems = "center";
+      element.style.justifyContent = "center";
+      element.style.fontSize = "20px";
+      element.style.border = "2px solid white";
+      element.style.borderRadius = "50%";
+      element.style.background = isFire ? "#f97316" : isShelter ? "#16a34a" : "#2563eb";
+      element.style.boxShadow = "0 0 18px rgba(255,255,255,0.75)";
+      element.style.cursor = "pointer";
 
-      facilityMarkersRef.current = [];
+      const popupHtml = `
+        <div style="font-family: sans-serif; padding: 4px; min-width: 140px;">
+          <strong style="font-size: 13px; color: #0f172a;">${facility.name || "Emergency Facility"}</strong>
+          <div style="font-size: 11px; color: #64748b; margin-top: 2px; text-transform: capitalize;">
+            ${facility.type || (isFire ? "Fire Station" : isShelter ? "Shelter" : "Hospital")}
+          </div>
+        </div>
+      `;
 
-      facilities.forEach(
-        facility => {
+      const marker = new maplibregl.Marker({ element })
+        .setLngLat([Number(facility.lng), Number(facility.lat)])
+        .setPopup(new maplibregl.Popup({ offset: 18 }).setHTML(popupHtml))
+        .addTo(map);
 
-          const type = String(
-            facility.type || "facility"
-          ).toLowerCase();
+      facilityMarkersRef.current.push(marker);
+    });
+  };
 
-          const element = document.createElement("div");
-          element.className = "custom-map-marker";
-          element.textContent =
-            type === "fire_station" ? "🚒" :
-            type === "shelter" ? "🏠" :
-            "🏥";
-          element.style.width = "38px";
-          element.style.height = "38px";
-          element.style.display = "flex";
-          element.style.alignItems = "center";
-          element.style.justifyContent = "center";
-          element.style.fontSize = "20px";
-          element.style.border = "2px solid white";
-          element.style.borderRadius = "50%";
-          element.style.background =
-            type === "fire_station" ? "#f97316" :
-            type === "shelter" ? "#16a34a" :
-            "#2563eb";
-          element.style.boxShadow = "0 0 18px rgba(255,255,255,0.55)";
+  const addAgentMarkers = (nodes) => {
+    const map = mapRef.current;
+    if (!map) return;
 
-          const marker = new maplibregl.Marker({ element })
-            .setLngLat([Number(facility.lng), Number(facility.lat)])
-            .setPopup(
-              new maplibregl.Popup({ offset: 18 }).setText(
-                `${facility.name || "Emergency Facility"} (${type})`
-              )
-            )
-            .addTo(map);
+    agentMarkersRef.current.forEach(marker => marker.remove());
+    agentMarkersRef.current = [];
 
-          facilityMarkersRef.current.push(marker);
+    const filteredNodes = nodes.filter(node => {
+      if (facilityFilter === "all") return true;
+      if (facilityFilter === "coordinator" && node.type === "coordinator") return true;
+      if (facilityFilter === "medical" && (node.type === "medical" || node.type === "hospital")) return true;
+      if (facilityFilter === "resource" && node.type === "resource") return true;
+      if (facilityFilter === "hospital" && node.type === "medical") return true;
+      if (facilityFilter === "fire_station" && (node.type === "emergency" || node.type === "fire_station")) return true;
+      return false;
+    });
 
+    filteredNodes.forEach(node => {
+      const element = document.createElement("div");
+      element.className = "custom-agent-marker flex flex-col items-center cursor-pointer";
+
+      element.innerHTML = `
+        <div style="
+          background: ${node.color};
+          color: white;
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 22px;
+          border: 3px solid white;
+          box-shadow: 0 0 20px ${node.color};
+          position: relative;
+        ">
+          ${node.icon}
+          <span style="
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            width: 12px;
+            height: 12px;
+            background: #22c55e;
+            border: 2px solid white;
+            border-radius: 50%;
+          "></span>
+        </div>
+        <div style="
+          background: rgba(15, 23, 42, 0.92);
+          color: white;
+          padding: 2px 8px;
+          border-radius: 8px;
+          font-size: 10px;
+          font-weight: 800;
+          white-space: nowrap;
+          margin-top: 4px;
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        ">
+          ${node.badge}
+        </div>
+      `;
+
+      const popupHtml = `
+        <div style="font-family: system-ui, -apple-system, sans-serif; padding: 6px; min-width: 220px; max-width: 280px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 6px;">
+            <span style="font-size: 13px; font-weight: 800; color: #0f172a;">${node.name}</span>
+            <span style="font-size: 9px; font-weight: 700; font-family: monospace; background: #e0e7ff; color: #4338ca; padding: 2px 6px; border-radius: 9999px;">
+              ${node.status}
+            </span>
+          </div>
+          <div style="font-size: 11px; color: #475569; font-weight: 600; margin-bottom: 4px;">
+            Role: ${node.role}
+          </div>
+          <p style="font-size: 11px; color: #1e293b; line-height: 1.4; background: #f8fafc; padding: 6px; border-radius: 6px; border: 1px solid #f1f5f9; margin: 0;">
+            "${node.recommendation}"
+          </p>
+        </div>
+      `;
+
+      const marker = new maplibregl.Marker({ element, anchor: "center" })
+        .setLngLat([node.lng, node.lat])
+        .setPopup(new maplibregl.Popup({ offset: 22 }).setHTML(popupHtml))
+        .addTo(map);
+
+      agentMarkersRef.current.push(marker);
+    });
+  };
+
+  const addSwarmNetworkLines = (nodes) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (map.getLayer("swarm-network-line")) map.removeLayer("swarm-network-line");
+    if (map.getSource("swarm-network")) map.removeSource("swarm-network");
+
+    const coordNode = nodes.find(n => n.id === "CoordinatorAgent");
+    if (!coordNode) return;
+
+    const features = nodes
+      .filter(n => n.id !== "CoordinatorAgent")
+      .map(node => ({
+        type: "Feature",
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [coordNode.lng, coordNode.lat],
+            [node.lng, node.lat]
+          ]
         }
-      );
+      }));
 
-    };
+    map.addSource("swarm-network", {
+      type: "geojson",
+      data: {
+        type: "FeatureCollection",
+        features
+      }
+    });
+
+    map.addLayer({
+      id: "swarm-network-line",
+      type: "line",
+      source: "swarm-network",
+      paint: {
+        "line-color": "#8b5cf6",
+        "line-width": 2,
+        "line-dasharray": [2, 3],
+        "line-opacity": 0.75
+      }
+    });
+  };
 
 
   // =========================================================
@@ -1898,60 +2114,46 @@ export default function MapDashboard({
 
       {/* HEADER */}
 
-      <div className="
+      <div className="absolute top-0 left-0 right-0 z-20 p-4 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-xs">
+        <div className="flex justify-between items-center gap-3">
 
-        absolute
+          {/* Title */}
+          <div className="min-w-0">
+            <h2 className="text-lg font-extrabold text-gray-900 leading-tight">
+              🌍 Intelligent Disaster Response Map
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5 font-medium truncate">
+              {data?.scenario?.name ||
+                data?.event?.disaster ||
+                data?.event?.disaster_type ||
+                "Active Emergency"}
+              {" • "}
+              {data?.scenario?.location ||
+                data?.event?.location ||
+                "Monitoring location"}
+            </p>
+          </div>
 
-        top-0
-
-        left-0
-
-        right-0
-
-        z-20
-
-        p-4
-
-        bg-slate-950/95
-
-        backdrop-blur-md
-
-        border-b
-
-        border-slate-800
-
-      ">
-
-
-        <div className="
-
-          flex
-
-          justify-between
-
-          items-center
-
-        ">
-
-
-          <div>
-
-          <div className="absolute top-24 right-4 z-10 flex flex-col items-end gap-2">
-            <div className="flex gap-1 rounded-lg border border-slate-700 bg-slate-950/90 p-1 shadow-lg backdrop-blur">
+          {/* Right controls */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Facility & Agent filters */}
+            <div className="flex gap-1 rounded-xl border border-gray-200 bg-white/95 p-1 shadow-sm backdrop-blur-xs flex-wrap">
               {[
                 ["all", "All"],
-                ["hospital", "Hospitals"],
-                ["fire_station", "Fire"],
-                ["shelter", "Shelters"],
+                ["coordinator", "🎯 Coordinator"],
+                ["medical", "🩺 Medical"],
+                ["resource", "📦 Resource"],
+                ["fire_station", "🚒 Fire"],
+                ["shelter", "🏠 Shelters"],
               ].map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
                   onClick={() => setFacilityFilter(value)}
-                  className={`rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wide transition ${
+                  className={`rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition ${
                     facilityFilter === value
-                      ? "bg-red-500 text-white"
-                      : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                      ? "bg-blue-600 text-white shadow-2xs"
+                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   }`}
                 >
                   {label}
@@ -1959,115 +2161,25 @@ export default function MapDashboard({
               ))}
             </div>
 
-            <div className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-950/85 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-300 backdrop-blur">
-              <span><b className="mr-1 text-blue-400">🏥</b> Medical</span>
-              <span><b className="mr-1 text-orange-400">🚒</b> Fire</span>
-              <span><b className="mr-1 text-green-400">🏠</b> Shelter</span>
+            {/* Live badge */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200">
+              <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+              <span className="text-xs font-bold text-red-700">LIVE</span>
             </div>
-          </div>
-
-            <h2 className="
-
-              text-xl
-
-              font-bold
-
-              text-white
-
-            ">
-
-              🌍 Intelligent Disaster Response Map
-
-            </h2>
-
-
-            <p className="
-
-              text-xs
-
-              text-slate-400
-
-              mt-1
-
-            ">
-
-              {data?.scenario?.name ||
-
-                data?.event?.disaster ||
-
-                data?.event?.disaster_type ||
-
-                "Active Emergency"}
-
-              {" • "}
-
-              {data?.scenario?.location ||
-
-                data?.event?.location ||
-
-                "Monitoring location"}
-
-            </p>
-
-          </div>
-
-
-          <div className="
-
-            flex
-
-            items-center
-
-            gap-2
-
-            px-3
-
-            py-2
-
-            rounded-lg
-
-            bg-red-500/10
-
-            border
-
-            border-red-500/30
-
-          ">
-
-            <span className="
-
-              w-2
-
-              h-2
-
-              rounded-full
-
-              bg-red-500
-
-              animate-pulse
-
-            "/>
-
-
-            <span className="
-
-              text-xs
-
-              font-bold
-
-              text-red-400
-
-            ">
-
-              LIVE RESPONSE
-
-            </span>
-
           </div>
 
         </div>
 
+        {/* Legend row */}
+        <div className="flex items-center gap-3 mt-2 text-[10px] font-bold uppercase tracking-wide text-gray-600 flex-wrap">
+          <span><b className="mr-1 text-purple-600">🎯</b>Coordinator HQ</span>
+          <span><b className="mr-1 text-teal-600">🩺</b>Medical Agent</span>
+          <span><b className="mr-1 text-amber-600">📦</b>Resource Agent</span>
+          <span><b className="mr-1 text-red-600">🚨</b>Emergency Ops</span>
+          <span><b className="mr-1 text-blue-600">🚦</b>Traffic Control</span>
+        </div>
       </div>
+
 
 
       {/* MAP */}

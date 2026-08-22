@@ -15,11 +15,11 @@ import {
 import { sendNotification, getNotifications } from "../services/adminService";
 
 const RESPONDERS = [
-  { code: "sos",       label: "SOS Contacts",       icon: "🆘", color: "border-red-700 bg-red-950/30" },
-  { code: "fire",      label: "Fire Brigade",        icon: "🚒", color: "border-orange-700 bg-orange-950/30" },
-  { code: "police",    label: "Police",              icon: "🚔", color: "border-blue-700 bg-blue-950/30" },
-  { code: "hospital",  label: "Hospital",            icon: "🏥", color: "border-emerald-700 bg-emerald-950/30" },
-  { code: "ambulance", label: "Ambulance Services",  icon: "🚑", color: "border-cyan-700 bg-cyan-950/30" },
+  { code: "sos",       label: "SOS Contacts",       icon: "🆘", color: "border-red-200 bg-red-50 text-red-900" },
+  { code: "fire",      label: "Fire Brigade",        icon: "🚒", color: "border-orange-200 bg-orange-50 text-orange-900" },
+  { code: "police",    label: "Police",              icon: "🚔", color: "border-blue-200 bg-blue-50 text-blue-900" },
+  { code: "hospital",  label: "Hospital",            icon: "🏥", color: "border-emerald-200 bg-emerald-50 text-emerald-900" },
+  { code: "ambulance", label: "Ambulance Services",  icon: "🚑", color: "border-cyan-200 bg-cyan-50 text-cyan-900" },
 ];
 
 export default function NotificationPanel({ incident }) {
@@ -77,22 +77,22 @@ export default function NotificationPanel({ incident }) {
   return (
     <div className="space-y-5">
       {/* Panel Header */}
-      <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
-        <FaBell className="text-amber-400" />
-        <h3 className="text-base font-bold text-white tracking-tight">
+      <div className="flex items-center gap-2 pb-3 border-b border-gray-200">
+        <FaBell className="text-amber-500" />
+        <h3 className="text-base font-bold text-gray-900 tracking-tight">
           Notification Center
         </h3>
-        <span className="ml-auto text-xs text-slate-500 font-mono">
+        <span className="ml-auto text-xs text-gray-400 font-mono font-bold">
           Incident #{incident?.short_id}
         </span>
       </div>
 
       {/* Responder Grid */}
       <div>
-        <p className="text-xs uppercase tracking-wider text-slate-400 font-mono mb-3">
-          Select Recipients
+        <p className="text-xs uppercase tracking-wider text-gray-500 font-mono font-bold mb-3">
+          Select Emergency Recipients
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {RESPONDERS.map(({ code, label, icon, color }) => {
             const active = selected.includes(code);
             return (
@@ -102,16 +102,16 @@ export default function NotificationPanel({ incident }) {
                 onClick={() => toggle(code)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all cursor-pointer ${
                   active
-                    ? `${color} border-opacity-100 ring-1 ring-inset ring-white/10`
-                    : "border-slate-800 bg-slate-900/50 hover:bg-slate-800"
+                    ? `${color} font-bold shadow-xs`
+                    : "border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-medium"
                 }`}
               >
                 <span className="text-xl">{icon}</span>
-                <span className="text-sm font-semibold text-slate-200">
+                <span className="text-sm">
                   {label}
                 </span>
                 {active && (
-                  <FaCheckCircle className="ml-auto text-emerald-400 text-sm shrink-0" />
+                  <FaCheckCircle className="ml-auto text-emerald-600 text-sm shrink-0" />
                 )}
               </button>
             );
@@ -121,15 +121,15 @@ export default function NotificationPanel({ incident }) {
 
       {/* Optional Message */}
       <div>
-        <label className="text-xs uppercase tracking-wider text-slate-400 font-mono block mb-2">
-          Custom Message (optional)
+        <label className="text-xs uppercase tracking-wider text-gray-600 font-mono font-bold block mb-2">
+          Custom Emergency Message (optional)
         </label>
         <textarea
           rows={2}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Emergency alert for Zone A — immediate response required."
-          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder:text-slate-600 resize-none focus:outline-none focus:ring-1 focus:ring-red-500/50"
+          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/15"
         />
       </div>
 
@@ -140,14 +140,14 @@ export default function NotificationPanel({ incident }) {
           animate={{ opacity: 1, y: 0 }}
           className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium ${
             result.type === "success"
-              ? "bg-emerald-950/50 border-emerald-700 text-emerald-300"
-              : "bg-red-950/50 border-red-700 text-red-300"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : "bg-red-50 border-red-200 text-red-700"
           }`}
         >
           {result.type === "success" ? (
-            <FaCheckCircle className="shrink-0" />
+            <FaCheckCircle className="shrink-0 text-emerald-600" />
           ) : (
-            <FaExclamationTriangle className="shrink-0" />
+            <FaExclamationTriangle className="shrink-0 text-red-600" />
           )}
           {result.text}
         </motion.div>
@@ -158,11 +158,7 @@ export default function NotificationPanel({ incident }) {
         type="button"
         onClick={handleSend}
         disabled={!selected.length || sending}
-        className={`w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-all ${
-          selected.length && !sending
-            ? "bg-red-600 hover:bg-red-500 text-white cursor-pointer shadow-lg shadow-red-950/40"
-            : "bg-slate-800 text-slate-500 cursor-not-allowed"
-        }`}
+        className="btn-primary w-full justify-center disabled:opacity-50"
       >
         {sending ? (
           <>
@@ -172,9 +168,9 @@ export default function NotificationPanel({ incident }) {
         ) : (
           <>
             <FaPaperPlane className="text-xs" />
-            Dispatch Alert
+            Dispatch Emergency Alert
             {selected.length > 0 && (
-              <span className="ml-1 px-2 py-0.5 rounded-full bg-red-800 text-xs">
+              <span className="ml-1.5 px-2 py-0.5 rounded-full bg-blue-700 text-white text-xs font-bold font-mono">
                 {selected.length}
               </span>
             )}
@@ -184,10 +180,10 @@ export default function NotificationPanel({ incident }) {
 
       {/* Notification History */}
       {history.length > 0 && (
-        <div className="pt-4 border-t border-slate-800">
-          <div className="flex items-center gap-2 mb-3">
-            <FaHistory className="text-slate-500 text-xs" />
-            <p className="text-xs uppercase tracking-wider text-slate-400 font-mono">
+        <div className="pt-4 border-t border-gray-200 space-y-3">
+          <div className="flex items-center gap-2">
+            <FaHistory className="text-gray-400 text-xs" />
+            <p className="text-xs uppercase tracking-wider text-gray-500 font-mono font-bold">
               Dispatch History
             </p>
           </div>
@@ -195,14 +191,14 @@ export default function NotificationPanel({ incident }) {
             {history.slice(0, 5).map((n, idx) => (
               <div
                 key={idx}
-                className="flex items-start gap-3 p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs"
+                className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 border border-gray-200 text-xs"
               >
-                <FaCheckCircle className="text-emerald-500 mt-0.5 shrink-0" />
+                <FaCheckCircle className="text-emerald-600 mt-0.5 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-slate-300 font-medium truncate">
+                  <p className="text-gray-900 font-bold truncate">
                     {(n.recipients || []).map((r) => r.label).join(", ")}
                   </p>
-                  <p className="text-slate-500 mt-0.5 font-mono">
+                  <p className="text-gray-400 font-mono text-[11px] mt-0.5">
                     {new Date(n.dispatched_at).toLocaleString()}
                   </p>
                 </div>

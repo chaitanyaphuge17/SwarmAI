@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback } from "react";
 // ============================================================
 
 export default function useGeolocation({ auto = true } = {}) {
+
   const [coords, setCoords] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

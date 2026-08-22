@@ -36,7 +36,6 @@ function nowPlusHours(h) {
 }
 
 function toISO(localDTString) {
-  // Convert local datetime-local value to full ISO string
   return new Date(localDTString).toISOString();
 }
 
@@ -60,7 +59,6 @@ export default function DelegationPanel({ incident }) {
   // Conflict state
   // ────────────────────────────────────────────────────────
   const [badgeStatus, setBadgeStatus] = useState("none");
-  // none | checking | clear | warning | blocked
   const [conflictResult, setConflictResult] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
@@ -192,21 +190,21 @@ export default function DelegationPanel({ incident }) {
     }
   };
 
-  // Confirm is enabled only when conflict check passed (clear / warning after override)
+  // Confirm is enabled only when conflict check passed
   const canConfirmDirect =
     badgeStatus === "clear" && conflictResult !== null;
 
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
-        <FaTasks className="text-red-400" />
-        <h3 className="text-base font-bold text-white tracking-tight">
-          Delegation Center
-        </h3>
-        <span className="ml-auto">
-          <ConflictBadge status={badgeStatus} />
-        </span>
+      <div className="flex items-center justify-between pb-3 border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <FaTasks className="text-blue-600" />
+          <h3 className="text-base font-bold text-gray-900 tracking-tight">
+            Delegation Center
+          </h3>
+        </div>
+        <ConflictBadge status={badgeStatus} />
       </div>
 
       {/* Success Banner */}
@@ -214,12 +212,12 @@ export default function DelegationPanel({ incident }) {
         <motion.div
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-start gap-3 p-4 rounded-xl bg-emerald-950/50 border border-emerald-700 text-emerald-300 text-sm"
+          className="flex items-start gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm"
         >
-          <FaCheckCircle className="text-lg shrink-0 mt-0.5" />
+          <FaCheckCircle className="text-lg shrink-0 mt-0.5 text-emerald-600" />
           <div>
             <p className="font-bold">Delegation Confirmed</p>
-            <p className="text-xs text-emerald-400 font-mono mt-0.5">
+            <p className="text-xs text-emerald-700 font-mono mt-0.5">
               Assignment ID: {confirmed.assignmentId?.slice(0, 8).toUpperCase()}
             </p>
           </div>
@@ -231,9 +229,9 @@ export default function DelegationPanel({ incident }) {
         <motion.div
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-start gap-3 p-4 rounded-xl bg-red-950/50 border border-red-700 text-red-300 text-sm"
+          className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm"
         >
-          <FaExclamationTriangle className="text-lg shrink-0 mt-0.5" />
+          <FaExclamationTriangle className="text-lg shrink-0 mt-0.5 text-red-600" />
           <p>{submitError}</p>
         </motion.div>
       )}
@@ -242,27 +240,27 @@ export default function DelegationPanel({ incident }) {
       <div className="space-y-4">
         {/* Task */}
         <div>
-          <label className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-slate-400 font-mono mb-2">
-            <FaTasks className="text-xs" /> Task / Responsibility
+          <label className="flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-gray-600 font-semibold mb-2">
+            <FaTasks className="text-xs text-blue-600" /> Task / Responsibility
           </label>
           <textarea
             rows={2}
             value={task}
             onChange={(e) => setTask(e.target.value)}
             placeholder="e.g. Secure perimeter and coordinate emergency response in Zone A."
-            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder:text-slate-600 resize-none focus:outline-none focus:ring-1 focus:ring-red-500/50"
+            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/15"
           />
         </div>
 
         {/* Team */}
         <div>
-          <label className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-slate-400 font-mono mb-2">
-            <FaUsers className="text-xs" /> Assign Team
+          <label className="flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-gray-600 font-semibold mb-2">
+            <FaUsers className="text-xs text-blue-600" /> Assign Team
           </label>
           <select
             value={teamId}
             onChange={(e) => setTeamId(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-red-500/50 cursor-pointer"
+            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-blue-600 cursor-pointer font-medium"
           >
             <option value="">— Select Team —</option>
             {teams.map((t) => (
@@ -275,13 +273,13 @@ export default function DelegationPanel({ incident }) {
 
         {/* Vehicle */}
         <div>
-          <label className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-slate-400 font-mono mb-2">
-            <FaCar className="text-xs" /> Vehicle (optional)
+          <label className="flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-gray-600 font-semibold mb-2">
+            <FaCar className="text-xs text-blue-600" /> Vehicle (optional)
           </label>
           <select
             value={vehicleId}
             onChange={(e) => setVehicleId(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-red-500/50 cursor-pointer"
+            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-blue-600 cursor-pointer font-medium"
           >
             <option value="">— No vehicle / select later —</option>
             {vehicles.map((v) => (
@@ -295,25 +293,25 @@ export default function DelegationPanel({ incident }) {
         {/* Time Window */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-slate-400 font-mono mb-2">
-              <FaClock className="text-xs" /> Start Time
+            <label className="flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-gray-600 font-semibold mb-2">
+              <FaClock className="text-xs text-blue-600" /> Start Time
             </label>
             <input
               type="datetime-local"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-red-500/50"
+              className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-blue-600 font-mono"
             />
           </div>
           <div>
-            <label className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-slate-400 font-mono mb-2">
-              <FaClock className="text-xs" /> End Time
+            <label className="flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-gray-600 font-semibold mb-2">
+              <FaClock className="text-xs text-blue-600" /> End Time
             </label>
             <input
               type="datetime-local"
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-red-500/50"
+              className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-blue-600 font-mono"
             />
           </div>
         </div>
@@ -325,16 +323,12 @@ export default function DelegationPanel({ incident }) {
           type="button"
           onClick={handleCheck}
           disabled={!teamId || !task.trim() || confirming}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm transition-all border ${
-            teamId && task.trim() && !confirming
-              ? "bg-slate-800 hover:bg-slate-700 border-slate-700 text-white cursor-pointer"
-              : "bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed"
-          }`}
+          className="btn-secondary flex-1 justify-center disabled:opacity-50"
         >
           {badgeStatus === "checking" ? (
-            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <span className="w-4 h-4 border-2 border-gray-400 border-t-blue-600 rounded-full animate-spin" />
           ) : (
-            <FaExclamationTriangle className="text-amber-400 text-xs" />
+            <FaExclamationTriangle className="text-amber-500 text-xs" />
           )}
           Check Conflict
         </button>
@@ -343,11 +337,7 @@ export default function DelegationPanel({ incident }) {
           type="button"
           onClick={() => handleConfirm(false)}
           disabled={!canConfirmDirect || confirming}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm transition-all ${
-            canConfirmDirect && !confirming
-              ? "bg-red-600 hover:bg-red-500 text-white cursor-pointer shadow-lg shadow-red-950/40"
-              : "bg-slate-800 text-slate-600 cursor-not-allowed"
-          }`}
+          className="btn-primary flex-1 justify-center disabled:opacity-50"
         >
           {confirming ? (
             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -360,10 +350,10 @@ export default function DelegationPanel({ incident }) {
 
       {/* Assignment History */}
       {assignments.length > 0 && (
-        <div className="pt-4 border-t border-slate-800">
-          <div className="flex items-center gap-2 mb-3">
-            <FaHistory className="text-slate-500 text-xs" />
-            <p className="text-xs uppercase tracking-wider text-slate-400 font-mono">
+        <div className="pt-4 border-t border-gray-200 space-y-3">
+          <div className="flex items-center gap-2">
+            <FaHistory className="text-gray-400 text-xs" />
+            <p className="text-xs uppercase tracking-wider text-gray-500 font-mono font-bold">
               Assignment History
             </p>
           </div>
@@ -371,25 +361,25 @@ export default function DelegationPanel({ incident }) {
             {assignments.slice(0, 5).map((a, idx) => (
               <div
                 key={idx}
-                className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1"
+                className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 text-xs space-y-1"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-300 font-semibold">
+                  <span className="text-gray-900 font-bold">
                     {teams.find((t) => t.id === a.teamId)?.name || a.teamId}
                   </span>
                   <span
                     className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                       a.status === "active"
-                        ? "bg-emerald-900/60 text-emerald-400"
-                        : "bg-slate-800 text-slate-500"
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-gray-100 text-gray-600 border border-gray-200"
                     }`}
                   >
                     {a.status}
                   </span>
                 </div>
-                <p className="text-slate-500 font-mono truncate">{a.task}</p>
+                <p className="text-gray-600 font-sans truncate">{a.task}</p>
                 {a.startTime && (
-                  <p className="text-slate-600 font-mono">
+                  <p className="text-gray-400 font-mono text-[11px]">
                     {new Date(a.startTime).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",

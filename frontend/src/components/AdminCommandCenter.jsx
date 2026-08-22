@@ -1,10 +1,11 @@
 /**
  * AdminCommandCenter — top-level admin view for a single incident.
  *
- * Renders three tabs:
- *   1. Incident Details  (reuses existing event data, no AI re-call)
- *   2. Notification Center
- *   3. Delegation Center  (core Round 2 feature)
+ * Renders four tabs:
+ *   1. Agent Workflow
+ *   2. Incident Details
+ *   3. Notification Center
+ *   4. Delegation Center
  */
 
 import { useState } from "react";
@@ -14,7 +15,6 @@ import {
   FaBell,
   FaTasks,
   FaMapMarkerAlt,
-  FaUsers,
   FaExclamationTriangle,
   FaCar,
   FaHospital,
@@ -35,9 +35,9 @@ const TABS = [
 
 function ImpactBadge({ level }) {
   const l = String(level).toLowerCase();
-  if (l === "high")   return <span className="px-2 py-0.5 rounded-lg bg-red-950/60 text-red-300 border border-red-800 text-xs font-semibold">High</span>;
-  if (l === "medium") return <span className="px-2 py-0.5 rounded-lg bg-amber-950/60 text-amber-300 border border-amber-800 text-xs font-semibold">Medium</span>;
-  return <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 text-xs font-semibold capitalize">{level}</span>;
+  if (l === "high")   return <span className="px-2 py-0.5 rounded-lg bg-red-50 text-red-700 border border-red-200 text-xs font-bold">High</span>;
+  if (l === "medium") return <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold">Medium</span>;
+  return <span className="px-2 py-0.5 rounded-lg bg-gray-100 text-gray-700 border border-gray-200 text-xs font-semibold capitalize">{level}</span>;
 }
 
 function SeverityBar({ value }) {
@@ -47,11 +47,11 @@ function SeverityBar({ value }) {
 
   return (
     <div className="flex items-center gap-3">
-      <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-sm font-bold text-white tabular-nums">
-        {value}<span className="text-slate-500 text-xs">/10</span>
+      <span className="text-sm font-bold text-gray-900 tabular-nums font-mono">
+        {value}<span className="text-gray-400 text-xs font-normal">/10</span>
       </span>
     </div>
   );
@@ -76,15 +76,15 @@ function IncidentDetailsTab({ incident }) {
     <div className="space-y-5">
       {/* Image Validation & Evidence Section */}
       {(imageUrl || (incident.image_validation && incident.image_validation.length > 0)) && (
-        <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <p className="text-xs text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1.5">
+        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+            <p className="text-xs text-gray-500 font-mono uppercase tracking-wider flex items-center gap-1.5 font-bold">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               Image Upload & Validation Report
             </p>
             <div className="flex items-center gap-2">
               {incident.total_images > 0 && (
-                <span className="px-2.5 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-[11px] font-mono">
+                <span className="px-2.5 py-0.5 rounded-lg bg-white border border-gray-200 text-gray-700 text-[11px] font-mono font-bold">
                   {incident.valid_images || (imageUrl ? 1 : 0)} / {incident.total_images || 1} Valid
                 </span>
               )}
@@ -92,7 +92,7 @@ function IncidentDetailsTab({ incident }) {
           </div>
 
           {imageUrl && (
-            <div className="relative rounded-xl overflow-hidden border border-slate-700 bg-slate-900 max-h-80 flex items-center justify-center">
+            <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-white max-h-80 flex items-center justify-center">
               <img
                 src={imageUrl}
                 alt={`Evidence for ${incident.type}`}
@@ -107,7 +107,7 @@ function IncidentDetailsTab({ incident }) {
           {/* Per-Image Detailed Validation Breakdown */}
           {Array.isArray(incident.image_validation) && incident.image_validation.length > 0 && (
             <div className="space-y-2 pt-2">
-              <p className="text-[11px] text-slate-500 font-mono uppercase tracking-wider">Per-Image Verification Log</p>
+              <p className="text-[11px] text-gray-400 font-mono uppercase tracking-wider font-bold">Per-Image Verification Log</p>
               <div className="space-y-2">
                 {incident.image_validation.map((item, idx) => {
                   const isValid = item.valid === true || item.accepted === true || item.status === "VALID" || item.relevant === true;
@@ -116,30 +116,30 @@ function IncidentDetailsTab({ incident }) {
                       key={idx}
                       className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs ${
                         isValid
-                          ? "bg-emerald-950/30 border-emerald-800/80 text-emerald-200"
-                          : "bg-red-950/30 border-red-800/80 text-red-200"
+                          ? "bg-emerald-50/60 border-emerald-200 text-emerald-900"
+                          : "bg-red-50/60 border-red-200 text-red-900"
                       }`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
+                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-white border border-gray-200 text-gray-600">
                           #{item.image_index || idx + 1}
                         </span>
                         <span className="font-medium truncate">{item.filename || `Image ${item.image_index || idx + 1}`}</span>
                         {item.predicted_label && item.predicted_label !== "none" && (
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-slate-900/60 border border-slate-700 text-slate-300 font-mono">
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-white border border-gray-200 text-gray-600 font-mono">
                             {item.predicted_label}
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="italic text-[11px] text-slate-300 max-w-xs truncate">
+                        <span className="italic text-[11px] text-gray-500 max-w-xs truncate">
                           {item.reason}
                         </span>
                         <span
                           className={`px-2.5 py-0.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider ${
                             isValid
-                              ? "bg-emerald-950/80 text-emerald-300 border-emerald-700"
-                              : "bg-red-950/80 text-red-300 border-red-700"
+                              ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                              : "bg-red-100 text-red-800 border-red-300"
                           }`}
                         >
                           {isValid ? "VALID" : "INVALID"}
@@ -156,26 +156,26 @@ function IncidentDetailsTab({ incident }) {
 
       {/* User Description (if provided) */}
       {incident.description && (
-        <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5">
-          <p className="text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">User-Reported Description</p>
-          <p className="text-sm text-slate-200 italic leading-relaxed">"{incident.description}"</p>
+        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5">
+          <p className="text-xs text-gray-400 font-mono uppercase tracking-wider mb-2 font-bold">User-Reported Description</p>
+          <p className="text-sm text-gray-800 italic leading-relaxed">"{incident.description}"</p>
         </div>
       )}
 
       {/* Overview */}
-      <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
-        <div className="flex flex-wrap items-center gap-3 pb-3 border-b border-slate-800">
+      <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4">
+        <div className="flex flex-wrap items-center gap-3 pb-3 border-b border-gray-200">
           <div>
-            <p className="text-xs text-slate-500 font-mono uppercase tracking-wider">#{incident.short_id}</p>
-            <h3 className="text-xl font-extrabold text-white tracking-tight">{incident.type}</h3>
+            <p className="text-xs text-gray-400 font-mono uppercase tracking-wider font-semibold">#{incident.short_id}</p>
+            <h3 className="text-xl font-extrabold text-gray-900 tracking-tight">{incident.type}</h3>
           </div>
           <span
             className={`ml-auto px-3 py-1 rounded-xl border text-xs font-bold uppercase tracking-wider ${
               incident.severityLabel === "critical"
-                ? "bg-red-950/80 text-red-300 border-red-700"
+                ? "bg-red-50 text-red-700 border-red-200"
                 : incident.severityLabel === "high"
-                ? "bg-orange-950/80 text-orange-300 border-orange-700"
-                : "bg-amber-950/80 text-amber-300 border-amber-700"
+                ? "bg-orange-50 text-orange-700 border-orange-200"
+                : "bg-amber-50 text-amber-700 border-amber-200"
             }`}
           >
             {incident.severityLabel}
@@ -183,21 +183,21 @@ function IncidentDetailsTab({ incident }) {
         </div>
 
         {/* Location */}
-        <div className="flex items-center gap-2 text-sm text-slate-300">
+        <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
           <FaMapMarkerAlt className="text-red-500 shrink-0" />
           {incident.location}
         </div>
 
         {/* Severity Bar */}
         <div>
-          <p className="text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">Severity Rating</p>
+          <p className="text-xs text-gray-400 font-mono uppercase tracking-wider mb-2 font-bold">Severity Rating</p>
           <SeverityBar value={incident.severity || 0} />
         </div>
 
         {/* Evacuation */}
         {incident.evacuationRequired && (
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-red-950/40 border border-red-800 text-red-300 text-sm">
-            <FaExclamationTriangle className="shrink-0" />
+          <div className="flex items-center gap-2 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-semibold">
+            <FaExclamationTriangle className="shrink-0 text-red-600" />
             Immediate evacuation recommended.
           </div>
         )}
@@ -205,19 +205,19 @@ function IncidentDetailsTab({ incident }) {
 
       {/* AI Summary */}
       {incident.summary && (
-        <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5">
-          <p className="text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">AI Assessment Summary</p>
-          <p className="text-sm text-slate-300 leading-relaxed">{incident.summary}</p>
+        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5">
+          <p className="text-xs text-gray-400 font-mono uppercase tracking-wider mb-2 font-bold">AI Assessment Summary</p>
+          <p className="text-sm text-gray-700 leading-relaxed">{incident.summary}</p>
         </div>
       )}
 
       {/* Observations, Hazards, Infrastructure */}
       {(observations.length > 0 || hazards.length > 0 || infrastructure.length > 0) && (
-        <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4">
           {observations.length > 0 && (
             <div>
-              <p className="text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">Observations</p>
-              <ul className="space-y-1.5 pl-4 list-disc text-sm text-slate-300">
+              <p className="text-xs text-gray-400 font-mono uppercase tracking-wider mb-2 font-bold">Observations</p>
+              <ul className="space-y-1.5 pl-4 list-disc text-sm text-gray-700">
                 {observations.map((o, i) => <li key={i}>{o}</li>)}
               </ul>
             </div>
@@ -225,10 +225,10 @@ function IncidentDetailsTab({ incident }) {
 
           {hazards.length > 0 && (
             <div>
-              <p className="text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">Detected Hazards</p>
+              <p className="text-xs text-gray-400 font-mono uppercase tracking-wider mb-2 font-bold">Detected Hazards</p>
               <div className="flex flex-wrap gap-2">
                 {hazards.map((h, i) => (
-                  <span key={i} className="px-2.5 py-1 rounded-lg bg-red-950/50 text-red-300 border border-red-900/60 text-xs font-medium">{h}</span>
+                  <span key={i} className="px-2.5 py-1 rounded-lg bg-red-50 text-red-700 border border-red-200 text-xs font-semibold">{h}</span>
                 ))}
               </div>
             </div>
@@ -236,10 +236,10 @@ function IncidentDetailsTab({ incident }) {
 
           {infrastructure.length > 0 && (
             <div>
-              <p className="text-xs text-slate-500 font-mono uppercase tracking-wider mb-2">Infrastructure Damage</p>
+              <p className="text-xs text-gray-400 font-mono uppercase tracking-wider mb-2 font-bold">Infrastructure Damage</p>
               <div className="flex flex-wrap gap-2">
                 {infrastructure.map((d, i) => (
-                  <span key={i} className="px-2.5 py-1 rounded-lg bg-amber-950/50 text-amber-300 border border-amber-900/60 text-xs font-medium">{d}</span>
+                  <span key={i} className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold">{d}</span>
                 ))}
               </div>
             </div>
@@ -249,15 +249,15 @@ function IncidentDetailsTab({ incident }) {
 
       {/* Impact Grid */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4">
-          <div className="flex items-center gap-1.5 text-xs font-mono uppercase text-slate-500 mb-1.5">
-            <FaCar className="text-xs" /> Traffic Impact
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+          <div className="flex items-center gap-1.5 text-xs font-mono uppercase text-gray-400 mb-1.5 font-bold">
+            <FaCar className="text-xs text-gray-600" /> Traffic Impact
           </div>
           <ImpactBadge level={incident.trafficImpact || "low"} />
         </div>
-        <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4">
-          <div className="flex items-center gap-1.5 text-xs font-mono uppercase text-slate-500 mb-1.5">
-            <FaHospital className="text-xs" /> Medical Access
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+          <div className="flex items-center gap-1.5 text-xs font-mono uppercase text-gray-400 mb-1.5 font-bold">
+            <FaHospital className="text-xs text-gray-600" /> Medical Access
           </div>
           <ImpactBadge level={incident.medicalImpact || "low"} />
         </div>
@@ -281,24 +281,24 @@ export default function AdminCommandCenter({ incident, onBack }) {
       className="w-full space-y-5"
     >
       {/* Command Center Header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl">
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 shadow-xs">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center shadow-lg shadow-red-950/50 border border-red-500/30 shrink-0">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center shadow-md shadow-blue-500/20 border border-blue-500 shrink-0">
               <FaShieldAlt className="text-white text-lg" />
             </div>
             <div>
-              <p className="text-xs text-slate-500 font-mono uppercase tracking-widest">
+              <p className="text-xs text-gray-400 font-mono uppercase tracking-widest font-bold">
                 Admin Command Center
               </p>
-              <h2 className="text-xl font-extrabold text-white tracking-tight mt-0.5">
+              <h2 className="text-xl font-extrabold text-gray-900 tracking-tight mt-0.5">
                 {incident?.type || "Incident"}
               </h2>
-              <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
+              <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5 font-medium">
                 <FaMapMarkerAlt className="text-red-500" />
                 {incident?.location}
-                <span className="text-slate-600">·</span>
-                <span className="font-mono text-slate-500">
+                <span className="text-gray-300">·</span>
+                <span className="font-mono text-gray-400 font-bold">
                   #{incident?.short_id}
                 </span>
               </p>
@@ -309,7 +309,7 @@ export default function AdminCommandCenter({ incident, onBack }) {
             <button
               type="button"
               onClick={onBack}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer shrink-0"
+              className="btn-secondary text-xs px-3.5 py-2 shrink-0"
             >
               <FaChevronLeft className="text-xs" />
               Back
@@ -318,16 +318,16 @@ export default function AdminCommandCenter({ incident, onBack }) {
         </div>
 
         {/* Status Row */}
-        <div className="mt-4 flex flex-wrap items-center gap-3 pt-4 border-t border-slate-800">
-          <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-950/50 border border-emerald-800 text-emerald-300 text-xs font-bold">
+        <div className="mt-4 flex flex-wrap items-center gap-3 pt-4 border-t border-gray-200">
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
             <FaCheckCircle className="text-xs" />
             {incident?.status || "validated"}
           </span>
-          <span className="text-xs text-slate-500 font-mono">
+          <span className="text-xs text-gray-500 font-mono font-semibold">
             Severity: {incident?.severity}/10
           </span>
           {incident?.disaster_type && (
-            <span className="text-xs text-slate-500 font-mono">
+            <span className="text-xs text-gray-500 font-mono">
               · Type: {incident.disaster_type}
             </span>
           )}
@@ -335,16 +335,16 @@ export default function AdminCommandCenter({ incident, onBack }) {
       </div>
 
       {/* Tab Bar */}
-      <div className="flex gap-1 p-1 bg-slate-900 border border-slate-800 rounded-2xl">
+      <div className="flex gap-1.5 p-1.5 bg-white border border-gray-200 rounded-2xl shadow-xs">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
             onClick={() => setActiveTab(id)}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
               activeTab === id
-                ? "bg-red-600 text-white shadow-md"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                ? "bg-blue-600 text-white shadow-sm shadow-blue-500/20"
+                : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
             }`}
           >
             <Icon className="text-xs" />
@@ -354,7 +354,7 @@ export default function AdminCommandCenter({ incident, onBack }) {
       </div>
 
       {/* Tab Content */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl min-h-64">
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs min-h-64">
         {activeTab === "workflow"   && <AgentWorkflowPanel incident={incident} />}
         {activeTab === "details"    && <IncidentDetailsTab incident={incident} />}
         {activeTab === "notify"     && <NotificationPanel incident={incident} />}

@@ -393,24 +393,21 @@ export default function DisasterInputPanel({
     });
 
 
-    // ==========================================================
-    // HANDLE ERRORS
-    // ==========================================================
-
     if (fileErrors.length > 0) {
 
       setErrors((prev) => ({
+
         ...prev,
+
         image: fileErrors.join(" "),
+
       }));
 
     } else {
 
       setErrors((prev) => {
 
-        const next = {
-          ...prev,
-        };
+        const next = { ...prev };
 
         delete next.image;
 
@@ -421,52 +418,20 @@ export default function DisasterInputPanel({
     }
 
 
-    // ==========================================================
-    // ADD UNIQUE FILES
-    // ==========================================================
-
     if (validFiles.length > 0) {
 
       setImages((previousImages) => {
 
-        const uniqueFiles =
-          validFiles.filter((newFile) => {
-
-            return !previousImages.some(
-              (existingFile) =>
-                existingFile.name ===
-                  newFile.name &&
-                existingFile.size ===
-                  newFile.size &&
-                existingFile.lastModified ===
-                  newFile.lastModified
-            );
-
-          });
-
-        return [
+        const combined = [
           ...previousImages,
-          ...uniqueFiles,
+          ...validFiles,
         ];
+
+        return combined.slice(0, 5);
 
       });
 
     }
-
-  };
-
-
-  // ============================================================
-  // BROWSE IMAGES
-  // ============================================================
-
-  const handleBrowseImages = () => {
-
-    if (loading) {
-      return;
-    }
-
-    fileInputRef.current?.click();
 
   };
 
@@ -485,53 +450,35 @@ export default function DisasterInputPanel({
 
     setCameraOpen(true);
 
-
     try {
 
-      if (
-        !navigator.mediaDevices ||
-        !navigator.mediaDevices.getUserMedia
-      ) {
-
-        throw new Error(
-          "Camera access is not supported in this browser."
-        );
-
-      }
-
-
-      const stream =
+      const mediaStream =
         await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: {
-              ideal: "environment",
-            },
+            facingMode: "environment",
           },
+
           audio: false,
         });
 
-
-      streamRef.current = stream;
-
+      streamRef.current = mediaStream;
 
       if (videoRef.current) {
 
         videoRef.current.srcObject =
-          stream;
-
-        await videoRef.current.play();
+          mediaStream;
 
       }
 
-    } catch (error) {
+    } catch (err) {
 
       console.error(
         "Camera error:",
-        error
+        err
       );
 
       setCameraError(
-        "Unable to access camera. Please allow camera permission and try again."
+        "Camera permission denied or camera unavailable."
       );
 
     }
@@ -555,64 +502,30 @@ export default function DisasterInputPanel({
 
 
   // ============================================================
-  // CAPTURE CAMERA IMAGE
+  // CAPTURE IMAGE
   // ============================================================
 
   const captureImage = () => {
 
-    const video =
-      videoRef.current;
-
-    const canvas =
-      canvasRef.current;
-
-
-    if (!video || !canvas) {
-
-      setCameraError(
-        "Camera is not ready."
-      );
-
-      return;
-
-    }
-
-
     if (
-      !video.videoWidth ||
-      !video.videoHeight
+      !videoRef.current ||
+      !canvasRef.current
     ) {
-
-      setCameraError(
-        "Camera is still loading. Please wait a moment."
-      );
-
       return;
-
     }
 
+    const video = videoRef.current;
+
+    const canvas = canvasRef.current;
 
     canvas.width =
-      video.videoWidth;
+      video.videoWidth || 640;
 
     canvas.height =
-      video.videoHeight;
-
+      video.videoHeight || 480;
 
     const context =
       canvas.getContext("2d");
-
-
-    if (!context) {
-
-      setCameraError(
-        "Unable to process captured image."
-      );
-
-      return;
-
-    }
-
 
     context.drawImage(
       video,
@@ -622,55 +535,54 @@ export default function DisasterInputPanel({
       canvas.height
     );
 
-
     canvas.toBlob(
       (blob) => {
 
         if (!blob) {
-
-          setCameraError(
-            "Failed to capture image."
-          );
-
           return;
-
         }
 
+        const file = new File(
+          [blob],
+          `camera_capture_${Date.now()}.jpg`,
+          {
+            type: "image/jpeg",
+          }
+        );
 
-        const timestamp =
-          Date.now();
-
-
-        const capturedFile =
-          new File(
-            [blob],
-            `camera_capture_${timestamp}.jpg`,
-            {
-              type: "image/jpeg",
-              lastModified: timestamp,
-            }
-          );
-
-
-        // Camera image is added to the
-        // SAME images array as uploaded images.
-        handleFiles([
-          capturedFile,
-        ]);
-
+        handleFiles([file]);
 
         closeCamera();
 
       },
       "image/jpeg",
-      0.92
+      0.9
     );
 
   };
 
 
   // ============================================================
-  // DRAG EVENTS
+  // BROWSE IMAGES
+  // ============================================================
+
+  const handleBrowseImages = () => {
+
+    if (loading) {
+      return;
+    }
+
+    if (fileInputRef.current) {
+
+      fileInputRef.current.click();
+
+    }
+
+  };
+
+
+  // ============================================================
+  // DRAG & DROP HANDLERS
   // ============================================================
 
   const handleDragOver = (event) => {
@@ -679,9 +591,11 @@ export default function DisasterInputPanel({
 
     event.stopPropagation();
 
-    if (!loading) {
-      setIsDragging(true);
+    if (loading) {
+      return;
     }
+
+    setIsDragging(true);
 
   };
 
@@ -709,10 +623,8 @@ export default function DisasterInputPanel({
       return;
     }
 
-
     const droppedFiles =
       event.dataTransfer?.files;
-
 
     if (
       droppedFiles &&
@@ -732,18 +644,17 @@ export default function DisasterInputPanel({
   // REMOVE IMAGE
   // ============================================================
 
-  const handleRemoveImage =
-    (indexToRemove) => {
+  const handleRemoveImage = (indexToRemove) => {
 
-      setImages(
-        (previousImages) =>
-          previousImages.filter(
-            (_, index) =>
-              index !== indexToRemove
-          )
-      );
+    setImages(
+      (previousImages) =>
+        previousImages.filter(
+          (_, index) =>
+            index !== indexToRemove
+        )
+    );
 
-    };
+  };
 
 
   // ============================================================
@@ -753,7 +664,6 @@ export default function DisasterInputPanel({
   const handleRemoveAllImages = () => {
 
     setImages([]);
-
 
     setErrors((prev) => {
 
@@ -766,7 +676,6 @@ export default function DisasterInputPanel({
       return next;
 
     });
-
 
     if (fileInputRef.current) {
 
@@ -859,7 +768,7 @@ export default function DisasterInputPanel({
 
   return (
 
-    <div className="w-full max-w-5xl mx-auto">
+    <div className="w-full max-w-4xl mx-auto my-6">
 
       {/* ====================================================== */}
       {/* CAMERA MODAL */}
@@ -867,29 +776,28 @@ export default function DisasterInputPanel({
 
       {cameraOpen && (
 
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-gray-900/60 backdrop-blur-xs flex items-center justify-center p-4">
 
-          <div className="w-full max-w-2xl bg-slate-950 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="w-full max-w-2xl bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden animate-fade-in">
 
-            <div className="flex items-center justify-between p-4 border-b border-slate-800">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
 
               <div>
 
-                <h3 className="text-lg font-bold text-white">
+                <h3 className="text-base font-bold text-gray-900">
                   Capture Incident Evidence
                 </h3>
 
-                <p className="text-xs text-slate-400 mt-1">
-                  Take a photograph and it will automatically be attached to the incident report.
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Take a photograph to attach as evidence to the incident report.
                 </p>
 
               </div>
 
-
               <button
                 type="button"
                 onClick={closeCamera}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
               >
 
                 <FaTimes />
@@ -898,12 +806,11 @@ export default function DisasterInputPanel({
 
             </div>
 
-
-            <div className="p-4">
+            <div className="p-4 bg-gray-50">
 
               {cameraError ? (
 
-                <div className="p-4 rounded-xl bg-red-950/40 border border-red-800 text-red-300 text-sm">
+                <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium">
 
                   {cameraError}
 
@@ -916,11 +823,10 @@ export default function DisasterInputPanel({
                   autoPlay
                   playsInline
                   muted
-                  className="w-full max-h-[65vh] object-cover rounded-xl bg-black"
+                  className="w-full max-h-[60vh] object-cover rounded-xl bg-black shadow-inner"
                 />
 
               )}
-
 
               <canvas
                 ref={canvasRef}
@@ -929,23 +835,21 @@ export default function DisasterInputPanel({
 
             </div>
 
-
-            <div className="flex justify-end gap-3 p-4 border-t border-slate-800">
+            <div className="flex justify-end gap-3 p-4 border-t border-gray-200 bg-white">
 
               <button
                 type="button"
                 onClick={closeCamera}
-                className="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-sm font-semibold"
+                className="btn-secondary"
               >
                 Cancel
               </button>
-
 
               <button
                 type="button"
                 onClick={captureImage}
                 disabled={!!cameraError}
-                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-bold flex items-center gap-2"
+                className="btn-primary bg-red-600 hover:bg-red-700 disabled:opacity-50"
               >
 
                 <FaCamera />
@@ -964,27 +868,31 @@ export default function DisasterInputPanel({
 
 
       {/* ====================================================== */}
-      {/* HEADER */}
+      {/* HEADER CARD */}
       {/* ====================================================== */}
 
-      <div className="bg-slate-900 border border-slate-800 rounded-t-2xl p-6 sm:p-8">
+      <div className="bg-white border border-gray-200 rounded-t-2xl p-6 sm:p-8 shadow-xs border-b-0">
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-start sm:items-center gap-4">
 
-          <div className="p-3 rounded-xl bg-red-600/10 border border-red-500/30 text-red-400">
+          <div className="p-3.5 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 shrink-0">
 
-            <FaExclamationCircle />
+            <FaExclamationCircle className="text-xl" />
 
           </div>
 
-
           <div>
 
-            <h2 className="text-2xl font-bold text-white uppercase tracking-tight">
-              Report An Incident
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+                Report Disaster Incident
+              </h2>
+              <span className="px-2.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 text-xs font-bold uppercase tracking-wider">
+                Emergency Input
+              </span>
+            </div>
 
-            <p className="text-sm text-slate-400 mt-1">
+            <p className="text-sm text-gray-500 mt-1 leading-relaxed">
               Describe what is happening naturally. SwarmAI multi-agent intelligence will analyze the situation and coordinate emergency response.
             </p>
 
@@ -996,27 +904,26 @@ export default function DisasterInputPanel({
 
 
       {/* ====================================================== */}
-      {/* FORM */}
+      {/* FORM BODY */}
       {/* ====================================================== */}
 
-      <div className="bg-slate-950 border-x border-b border-slate-800 rounded-b-2xl p-6 sm:p-8">
-
+      <div className="bg-white border border-gray-200 rounded-b-2xl p-6 sm:p-8 shadow-sm">
 
         {/* API ERROR */}
 
         {apiError && (
 
-          <div className="mb-6 p-4 rounded-xl bg-red-950/40 border border-red-800 text-red-300 text-sm flex gap-3">
+          <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex gap-3 animate-fade-in">
 
-            <FaExclamationCircle className="mt-0.5 shrink-0" />
+            <FaExclamationCircle className="mt-0.5 shrink-0 text-red-600" />
 
             <div>
 
-              <p className="font-bold">
+              <p className="font-bold text-red-900">
                 Analysis Failed
               </p>
 
-              <p className="mt-1">
+              <p className="mt-0.5">
                 {apiError}
               </p>
 
@@ -1029,27 +936,25 @@ export default function DisasterInputPanel({
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-7"
+          className="space-y-6"
           noValidate
         >
 
-
           {/* ================================================== */}
-          {/* DESCRIPTION (NATURAL LANGUAGE INCIDENT REPORTING) */}
+          {/* DESCRIPTION */}
           {/* ================================================== */}
 
           <div>
 
-            <label className="block text-sm font-semibold text-slate-200 mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
 
-              Describe what is happening
+              Incident Description
 
-              <span className="text-xs text-slate-400 font-normal ml-2">
-                Optional
+              <span className="text-xs text-gray-400 font-normal ml-2">
+                (Optional)
               </span>
 
             </label>
-
 
             <textarea
               value={description}
@@ -1066,15 +971,15 @@ export default function DisasterInputPanel({
               disabled={loading}
               rows={4}
               placeholder="Large fire spreading near several houses. Severe smoke is blocking the main road..."
-              className={`w-full px-4 py-3.5 rounded-xl bg-slate-900 border text-white placeholder:text-slate-500 outline-none focus:ring-2 resize-none transition duration-200 ${
+              className={`w-full px-4 py-3 rounded-xl bg-white border text-gray-900 text-sm placeholder:text-gray-400 outline-none transition duration-200 ${
                 errors.description
-                  ? "border-red-500 focus:ring-red-500/50"
-                  : "border-slate-800 focus:border-slate-600 focus:ring-slate-700/50"
+                  ? "border-red-500 focus:ring-2 focus:ring-red-500/20"
+                  : "border-gray-200 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/15"
               }`}
             />
 
             {errors.description && (
-              <p className="text-xs text-red-400 flex items-center gap-1.5 pt-1.5">
+              <p className="text-xs text-red-600 flex items-center gap-1.5 pt-1.5">
                 <FaExclamationCircle />
                 {errors.description}
               </p>
@@ -1093,7 +998,7 @@ export default function DisasterInputPanel({
 
               <label
                 htmlFor="disaster-location"
-                className="text-sm font-semibold text-slate-200 flex items-center gap-2"
+                className="text-sm font-semibold text-gray-900 flex items-center gap-1.5"
               >
 
                 <FaMapMarkerAlt className="text-red-500 text-xs" />
@@ -1102,18 +1007,17 @@ export default function DisasterInputPanel({
                   Location
                 </span>
 
-                <span className="text-xs text-red-400 font-normal">
+                <span className="text-xs text-red-600 font-normal">
                   * Required
                 </span>
 
               </label>
 
-
               <button
                 type="button"
                 onClick={handleUseMyLocation}
                 disabled={loading || geoLocating}
-                className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 bg-blue-950/40 border border-blue-800/50 hover:bg-blue-900/30 px-2.5 py-1.5 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1.5 bg-blue-50 border border-blue-200 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
 
                 {geoLocating ? (
@@ -1127,7 +1031,7 @@ export default function DisasterInputPanel({
 
                   <>
                     <FaMapMarkerAlt className="text-[10px]" />
-                    <span>Use current location</span>
+                    <span>Use Current Location</span>
                   </>
 
                 )}
@@ -1135,12 +1039,6 @@ export default function DisasterInputPanel({
               </button>
 
             </div>
-
-
-            <p className="text-xs text-slate-400">
-              City, district, landmark, or street address.
-            </p>
-
 
             <input
               id="disaster-location"
@@ -1171,10 +1069,10 @@ export default function DisasterInputPanel({
               }}
               disabled={loading}
               placeholder="e.g. Pune, Maharashtra"
-              className={`w-full px-4 py-3.5 rounded-xl bg-slate-900 border text-slate-100 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 transition duration-200 ${
+              className={`w-full px-4 py-3 rounded-xl bg-white border text-gray-900 text-sm placeholder:text-gray-400 outline-none transition duration-200 ${
                 errors.location
-                  ? "border-red-500 focus:ring-red-500/50"
-                  : "border-slate-800 focus:border-slate-600 focus:ring-slate-700/50"
+                  ? "border-red-500 focus:ring-2 focus:ring-red-500/20"
+                  : "border-gray-200 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/15"
               } ${
                 loading
                   ? "opacity-60 cursor-not-allowed"
@@ -1182,10 +1080,9 @@ export default function DisasterInputPanel({
               }`}
             />
 
-
             {errors.location && (
 
-              <p className="text-xs text-red-400 flex items-center gap-1.5 pt-1">
+              <p className="text-xs text-red-600 flex items-center gap-1.5 pt-1">
 
                 <FaExclamationCircle />
 
@@ -1195,10 +1092,9 @@ export default function DisasterInputPanel({
 
             )}
 
-
             {geoAlert && (
 
-              <p className="text-xs text-amber-400 flex items-center gap-1.5 pt-1">
+              <p className="text-xs text-amber-600 flex items-center gap-1.5 pt-1">
 
                 <FaExclamationCircle />
 
@@ -1234,90 +1130,113 @@ export default function DisasterInputPanel({
 
 
           {/* ================================================== */}
-          {/* IMAGE UPLOAD */}
+          {/* IMAGE UPLOAD ZONE */}
           {/* ================================================== */}
 
           <div>
 
-            <div className="flex items-center justify-between gap-4 mb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
 
-              <label className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+              <label className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
 
-                <FaImages className="text-red-500" />
+                <FaImages className="text-blue-600" />
 
-                Incident Images
+                Incident Evidence Images
 
-                <span className="text-red-400">
-                  *
-                </span>
+                <span className="text-red-600 font-bold">*</span>
 
               </label>
 
-
-              <span className="text-xs text-slate-500">
-
-                {images.length} selected
-
-              </span>
-
-            </div>
-
-
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-2xl p-8 text-center transition ${
-                isDragging
-                  ? "border-red-500 bg-red-950/20"
-                  : errors.image
-                  ? "border-red-700 bg-red-950/10"
-                  : "border-slate-700 bg-slate-900/50"
-              }`}
-            >
-
-              <FaCloudUploadAlt className="mx-auto text-3xl text-slate-400 mb-3" />
-
-
-              <p className="text-sm font-semibold text-slate-200">
-
-                Drag and drop disaster images here
-
-              </p>
-
-
-              <p className="text-xs text-slate-500 mt-2">
-
-                JPG, PNG, WEBP • Maximum 10 MB per image
-
-              </p>
-
-
-              <div className="flex flex-col sm:flex-row justify-center gap-3 mt-5">
-
+              <div className="flex items-center gap-2.5">
 
                 <button
                   type="button"
                   onClick={handleBrowseImages}
                   disabled={loading}
-                  className="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-sm font-semibold flex items-center justify-center gap-2"
+                  className="px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
                 >
 
-                  <FaImages />
+                  <FaImages className="text-blue-600 text-xs" />
 
-                  Browse Images
+                  <span>Browse Images</span>
 
                 </button>
-
 
                 <button
                   type="button"
                   onClick={startCamera}
                   disabled={loading}
-                  className="px-5 py-3 rounded-xl bg-red-600/10 hover:bg-red-600/20 border border-red-500/40 text-red-300 text-sm font-semibold flex items-center justify-center gap-2"
+                  className="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
                 >
 
-                  <FaCamera />
+                  <FaCamera className="text-emerald-600 text-xs" />
+
+                  <span>Use Camera</span>
+
+                </button>
+
+                <span className="text-xs text-gray-400 font-mono ml-1">
+
+                  {images.length} / 5
+
+                </span>
+
+              </div>
+
+            </div>
+
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-2xl p-8 text-center transition duration-200 ${
+                isDragging
+                  ? "border-blue-500 bg-blue-50/50"
+                  : errors.image
+                  ? "border-red-400 bg-red-50/30"
+                  : "border-gray-300 bg-gray-50/60 hover:bg-gray-50 hover:border-gray-400"
+              }`}
+            >
+
+              <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-3 border border-blue-100 shadow-xs">
+                <FaCloudUploadAlt className="text-xl" />
+              </div>
+
+              <p className="text-sm font-bold text-gray-900">
+
+                Drag and drop disaster images here
+
+              </p>
+
+              <p className="text-xs text-gray-500 mt-1">
+
+                JPG, PNG, WEBP • Maximum 10 MB per image
+
+              </p>
+
+              <div className="flex flex-col sm:flex-row justify-center gap-3 mt-4">
+
+                <button
+                  type="button"
+                  onClick={handleBrowseImages}
+                  disabled={loading}
+                  className="px-5 py-2.5 rounded-xl bg-white border border-gray-300 hover:border-blue-500 hover:bg-blue-50/50 text-gray-800 text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                >
+
+                  <FaImages className="text-blue-600 text-sm" />
+
+                  Browse Images
+
+                </button>
+
+                <button
+                  type="button"
+                  onClick={startCamera}
+                  disabled={loading}
+                  className="px-5 py-2.5 rounded-xl bg-white border border-gray-300 hover:border-emerald-500 hover:bg-emerald-50/50 text-gray-800 text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                >
+
+                  <FaCamera className="text-emerald-600 text-sm" />
 
                   Use Camera
 
@@ -1327,11 +1246,10 @@ export default function DisasterInputPanel({
 
             </div>
 
-
             {errors.image && (
 
-              <p className="mt-2 text-xs text-red-400">
-
+              <p className="mt-2 text-xs text-red-600 font-medium flex items-center gap-1">
+                <FaExclamationCircle />
                 {errors.image}
 
               </p>
@@ -1345,22 +1263,21 @@ export default function DisasterInputPanel({
 
             {images.length > 0 && (
 
-              <div className="mt-6">
+              <div className="mt-5">
 
                 <div className="flex justify-between items-center mb-3">
 
-                  <p className="text-sm font-semibold text-slate-300">
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-600">
 
-                    Selected Images
+                    Attached Evidence ({images.length})
 
                   </p>
-
 
                   <button
                     type="button"
                     onClick={handleRemoveAllImages}
                     disabled={loading}
-                    className="text-xs text-red-400 hover:text-red-300"
+                    className="text-xs text-red-600 hover:text-red-700 font-semibold transition"
                   >
 
                     Remove All
@@ -1369,15 +1286,14 @@ export default function DisasterInputPanel({
 
                 </div>
 
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
 
                   {images.map(
                     (image, index) => (
 
                       <div
                         key={`${image.name}-${image.lastModified}-${index}`}
-                        className="relative rounded-xl overflow-hidden border border-slate-700 bg-slate-900"
+                        className="relative rounded-xl overflow-hidden border border-gray-200 bg-white shadow-xs group"
                       >
 
                         <img
@@ -1386,30 +1302,28 @@ export default function DisasterInputPanel({
                           className="w-full aspect-square object-cover"
                         />
 
-
                         <button
                           type="button"
                           onClick={() =>
                             handleRemoveImage(index)
                           }
                           disabled={loading}
-                          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/70 hover:bg-red-600 text-white flex items-center justify-center"
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-gray-900/70 hover:bg-red-600 text-white flex items-center justify-center transition shadow-sm"
                         >
 
-                          <FaTrashAlt />
+                          <FaTrashAlt className="text-xs" />
 
                         </button>
 
+                        <div className="p-2 bg-white border-t border-gray-100">
 
-                        <div className="p-2">
-
-                          <p className="text-xs text-slate-300 truncate">
+                          <p className="text-xs font-medium text-gray-900 truncate">
 
                             {image.name}
 
                           </p>
 
-                          <p className="text-[10px] text-slate-500 mt-1">
+                          <p className="text-[10px] text-gray-400 font-mono mt-0.5">
 
                             {formatFileSize(
                               image.size
@@ -1434,27 +1348,27 @@ export default function DisasterInputPanel({
 
 
           {/* ================================================== */}
-          {/* SUBMIT */}
+          {/* SUBMIT BUTTON */}
           {/* ================================================== */}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold flex items-center justify-center gap-3 transition"
+            className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold flex items-center justify-center gap-2.5 transition shadow-md shadow-blue-500/20 text-sm tracking-wide cursor-pointer"
           >
 
             {loading ? (
 
               <>
-                <FaSpinner className="animate-spin" />
-                Analyzing Disaster...
+                <FaSpinner className="animate-spin text-base" />
+                Analyzing Incident Intelligence...
               </>
 
             ) : (
 
               <>
-                Analyze Incident
-                <FaArrowRight />
+                Analyze Incident Intelligence
+                <FaArrowRight className="text-xs" />
               </>
 
             )}

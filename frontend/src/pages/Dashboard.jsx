@@ -6,7 +6,7 @@ import DisasterInputPanel from "../components/DisasterInputPanel";
 import WelcomeScreen from "../components/WelcomeScreen";
 import AnalysisScreen from "../components/AnalysisScreen";
 import ResponseView from "../components/ResponseView";
-import MapDashboard from "../components/MapDashboard";
+
 import IncidentQueue from "../components/IncidentQueue";
 import AdminCommandCenter from "../components/AdminCommandCenter";
 import AdminLogin from "../components/AdminLogin";
@@ -43,9 +43,9 @@ export default function Dashboard() {
   // ============================================================
 
   const [theme, setTheme] = useState(() => {
-    if (typeof window === "undefined") return "dark";
+    if (typeof window === "undefined") return "light";
     const saved = localStorage.getItem("swarmai-theme");
-    return saved === "light" || saved === "dark" ? saved : "dark";
+    return saved === "light" || saved === "dark" ? saved : "light";
   });
 
   useEffect(() => {
@@ -481,7 +481,7 @@ export default function Dashboard() {
   const isDark = theme === "dark";
 
   const pageStyle = {
-    backgroundColor: isDark ? "#020617" : "#f5f7fa",
+    backgroundColor: isDark ? "#020617" : "#F6F8FC",
     color: isDark ? "#f8fafc" : "#111827",
     transition: "background-color 0.3s, color 0.3s",
   };
@@ -699,20 +699,41 @@ export default function Dashboard() {
       return null;
     };
 
+    const emergencyData = extractAgent("EmergencyAgent");
+    const medicalData = extractAgent("MedicalAgent");
     const trafficData = extractAgent("TrafficAgent");
     const resourceData = extractAgent("ResourceAgent");
+    const coordinatorData = extractAgent("CoordinatorAgent");
     const routeCoords = Array.isArray(disasterAnalysis.route_coordinates) ? disasterAnalysis.route_coordinates : [];
+
+    const allFacilities = [
+      ...(trafficData?.traffic_response?.nearby_facilities || []),
+      ...(medicalData?.decision?.nearby_facilities || []),
+      ...(medicalData?.nearby_facilities || []),
+      ...(resourceData?.decision?.nearby_facilities || []),
+      ...(resourceData?.nearby_facilities || []),
+      ...(emergencyData?.decision?.nearby_facilities || []),
+      ...(emergencyData?.nearby_facilities || []),
+      ...(coordinatorData?.decision?.nearby_facilities || []),
+      ...(coordinatorData?.nearby_facilities || []),
+    ];
 
     const mapData = {
       event: ev,
-      agents: { TrafficAgent: trafficData },
+      agents: {
+        EmergencyAgent: emergencyData,
+        MedicalAgent: medicalData,
+        TrafficAgent: trafficData,
+        ResourceAgent: resourceData,
+        CoordinatorAgent: coordinatorData,
+      },
       traffic_response: trafficData?.traffic_response,
       resources: resourceData?.decision?.resources ?? {},
       map: {
         latitude: loc.latitude ?? ev.latitude,
         longitude: loc.longitude ?? ev.longitude,
         coordinates: routeCoords,
-        facilities: trafficData?.traffic_response?.nearby_facilities ?? [],
+        facilities: allFacilities,
         affectedArea: ev.disaster_type || ev.disaster || "Disaster",
         location: loc.name || ev.location || "",
       },
@@ -722,9 +743,6 @@ export default function Dashboard() {
       },
       stats: { severity: typeof ev.severity === "number" ? ev.severity : 0 },
     };
-
-    const TAB_ANALYSIS = "analysis";
-    const TAB_MAP = "map";
 
     return (
       <div
@@ -737,57 +755,13 @@ export default function Dashboard() {
           onHome={navigateToHome}
         />
 
-        {/* ── Tab Bar ────────────────────────────────────────── */}
-        <div
-          className="sticky top-[57px] z-30 border-b"
-          style={{
-            backgroundColor: isDark ? "#0f172a" : "#ffffff",
-            borderColor: isDark ? "#1e293b" : "#dbe3ec",
-          }}
-        >
-          <div className="max-w-6xl mx-auto px-4 sm:px-8 flex gap-0">
-            {[
-              { id: TAB_ANALYSIS, label: "Analysis Results" },
-              { id: TAB_MAP, label: "Response Map" },
-            ].map(({ id, label }) => {
-              const active = responseTab === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setResponseTab(id)}
-                  className="px-5 py-3.5 text-sm font-semibold tracking-wide border-b-2 transition-colors duration-150 focus:outline-none"
-                  style={{
-                    borderColor: active ? "#dc2626" : "transparent",
-                    color: active
-                      ? (isDark ? "#f8fafc" : "#111827")
-                      : (isDark ? "#64748b" : "#64748b"),
-                  }}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── Tab Content ─────────────────────────────────────── */}
-        {responseTab === TAB_ANALYSIS ? (
-          <main
-            className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-8"
-          >
-            <ResponseView
-              data={disasterAnalysis}
-              onReset={handleReset}
-              userLocation={userLocation}
-              onViewMap={() => setResponseTab(TAB_MAP)}
-            />
-          </main>
-        ) : (
-          <div className="flex-1 flex flex-col">
-            <MapDashboard data={mapData} />
-          </div>
-        )}
+        <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-8">
+          <ResponseView
+            data={disasterAnalysis}
+            onReset={handleReset}
+            userLocation={userLocation}
+          />
+        </main>
       </div>
     );
   }

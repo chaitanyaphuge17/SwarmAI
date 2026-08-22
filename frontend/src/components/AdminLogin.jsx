@@ -58,17 +58,14 @@ export default function AdminLogin({ onLoginSuccess, onBackToCitizen }) {
         initial={{ opacity: 0, y: 20, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden"
+        className="w-full max-w-md bg-white border border-gray-200 rounded-3xl p-8 shadow-sm relative overflow-hidden"
       >
-        {/* Ambient Top Glow */}
-        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-48 h-48 bg-red-600/20 rounded-full blur-3xl pointer-events-none" />
-
         {/* Back Link */}
         {onBackToCitizen && (
           <button
             type="button"
             onClick={onBackToCitizen}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition font-mono uppercase tracking-wider mb-6 cursor-pointer"
+            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition font-mono uppercase tracking-wider mb-6 cursor-pointer"
           >
             <FaChevronLeft className="text-[10px]" />
             Return to Citizen Portal
@@ -77,13 +74,13 @@ export default function AdminLogin({ onLoginSuccess, onBackToCitizen }) {
 
         {/* Emblem & Title */}
         <div className="flex flex-col items-center text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white shadow-xl shadow-red-950/60 border border-red-500/30 mb-4">
+          <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 border border-blue-500 mb-4">
             <FaShieldAlt className="text-2xl" />
           </div>
-          <h2 className="text-2xl font-black text-white tracking-tight">
+          <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
             Emergency Command Portal
           </h2>
-          <p className="text-xs text-slate-400 font-mono uppercase tracking-widest mt-1">
+          <p className="text-xs text-gray-400 font-mono uppercase tracking-widest mt-1">
             Authorized Personnel Only
           </p>
         </div>
@@ -93,10 +90,10 @@ export default function AdminLogin({ onLoginSuccess, onBackToCitizen }) {
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 p-4 rounded-xl bg-red-950/60 border border-red-800/80 text-red-300 text-xs flex items-start gap-3"
+            className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-3"
           >
             <FaExclamationTriangle className="text-sm shrink-0 mt-0.5" />
-            <p>{error}</p>
+            <p className="font-medium">{error}</p>
           </motion.div>
         )}
 
@@ -104,8 +101,8 @@ export default function AdminLogin({ onLoginSuccess, onBackToCitizen }) {
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {/* Username */}
           <div className="space-y-1.5">
-            <label className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <FaUser className="text-[10px]" /> Administrator ID
+            <label className="text-xs font-mono uppercase tracking-wider text-gray-600 flex items-center gap-1.5 font-semibold">
+              <FaUser className="text-[10px] text-blue-600" /> Administrator ID
             </label>
             <div className="relative">
               <input
@@ -115,15 +112,15 @@ export default function AdminLogin({ onLoginSuccess, onBackToCitizen }) {
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={loading}
                 placeholder="e.g. admin"
-                className="w-full px-4 py-3.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-red-500/80 focus:ring-2 focus:ring-red-500/20 transition"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/15 transition"
               />
             </div>
           </div>
 
           {/* Password */}
           <div className="space-y-1.5">
-            <label className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <FaLock className="text-[10px]" /> Security Key / Password
+            <label className="text-xs font-mono uppercase tracking-wider text-gray-600 flex items-center gap-1.5 font-semibold">
+              <FaLock className="text-[10px] text-blue-600" /> Security Key / Password
             </label>
             <div className="relative">
               <input
@@ -133,12 +130,12 @@ export default function AdminLogin({ onLoginSuccess, onBackToCitizen }) {
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
                 placeholder="••••••••••••"
-                className="w-full px-4 py-3.5 pr-11 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-red-500/80 focus:ring-2 focus:ring-red-500/20 transition"
+                className="w-full px-4 py-3 pr-11 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/15 transition"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition text-sm cursor-pointer"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition text-sm cursor-pointer"
                 tabIndex={-1}
               >
                 {showPassword ? <FaEyeSlash /> : <FaEye />}
@@ -150,7 +147,7 @@ export default function AdminLogin({ onLoginSuccess, onBackToCitizen }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 py-3.5 px-6 rounded-xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 disabled:opacity-50 text-white font-bold text-sm tracking-wide shadow-lg shadow-red-950/50 flex items-center justify-center gap-2 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500/40"
+            className="w-full mt-2 py-3.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-sm tracking-wide shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             {loading ? (
               <>
@@ -167,8 +164,8 @@ export default function AdminLogin({ onLoginSuccess, onBackToCitizen }) {
         </form>
 
         {/* Security Notice */}
-        <div className="mt-8 pt-6 border-t border-slate-800/80 text-center">
-          <p className="text-[11px] text-slate-500 font-mono leading-relaxed">
+        <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+          <p className="text-[11px] text-gray-400 font-mono leading-relaxed">
             Restricted access. All connection attempts, IP addresses, and command operations are cryptographically logged.
           </p>
         </div>
