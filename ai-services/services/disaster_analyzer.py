@@ -481,41 +481,25 @@ def normalize_analysis(
                 break
 
         if matching:
+            rel_val = matching.get("relevant") if "relevant" in matching else (matching.get("valid") if "valid" in matching else matching.get("accepted"))
+            is_rel = normalize_boolean(rel_val, False)
 
             normalized_validation.append({
-
-                "image_index":
-                    index,
-
-                "relevant":
-                    normalize_boolean(
-                        matching.get(
-                            "relevant"
-                        ),
-                        disaster_relevant
-                    ),
-
-                "reason":
-                    str(
-                        matching.get(
-                            "reason",
-                            "Validated during disaster analysis."
-                        )
+                "image_index": index,
+                "relevant": is_rel,
+                "reason": str(
+                    matching.get(
+                        "reason",
+                        "Validated during disaster analysis." if is_rel else "Validation failed."
                     )
+                )
             })
 
         else:
-
             normalized_validation.append({
-
-                "image_index":
-                    index,
-
-                "relevant":
-                    disaster_relevant,
-
-                "reason":
-                    "Validated during disaster analysis."
+                "image_index": index,
+                "relevant": False,
+                "reason": "Missing image validation response."
             })
 
     return {
@@ -813,7 +797,14 @@ def build_safe_fallback(
 
         is_forest_fire = "fire" in predicted_label
 
-        relevant = not (
+        rel_val = image.get("accepted") if "accepted" in image else (
+            validation.get("accepted") if "accepted" in validation else (
+                validation.get("relevant") if "relevant" in validation else validation.get("valid")
+            )
+        )
+        is_accepted = normalize_boolean(rel_val, True if (validation or image) else False)
+
+        relevant = is_accepted and not (
             coastal_location
             and is_forest_fire
             and not explicit_fire
@@ -827,10 +818,11 @@ def build_safe_fallback(
             "relevant": relevant,
             "reason": (
                 "Fire image does not match the coastal high-tide incident."
-                if not relevant
-                else validation.get(
-                    "reason",
-                    "Accepted by upstream disaster image validation."
+                if (is_accepted and not relevant)
+                else (
+                    validation.get("reason") or image.get("reason", "Accepted by disaster image validation.")
+                    if relevant
+                    else "Image failed disaster validation."
                 )
             ),
             "predicted_label": predicted_label

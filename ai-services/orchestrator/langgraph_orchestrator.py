@@ -12,6 +12,8 @@ from agents.resource_agent import ResourceAgent
 from shared.global_context import GlobalContext
 from shared.communication_manager import CommunicationManager
 from shared.memory_manager import MemoryManager
+from services.workflow_service import WorkflowService
+from services.cloudinary_service import delete_image_from_cloudinary
 
 
 # ============================================================
@@ -590,11 +592,22 @@ def run_agent(
     event,
     historical_context
 ):
+    incident_id = event.get("event_id") if isinstance(event, dict) else None
 
     print(
         f"\n🤖 Running {agent.name}"
     )
 
+    if incident_id:
+        communication_manager.set_incident_id(incident_id)
+        WorkflowService.record_event(
+            incident_id=incident_id,
+            sender_agent_id=agent.name,
+            receiver_agent_id="CoordinatorAgent",
+            event_type="agent_started",
+            message=f"{agent.name} initialized disaster analysis and situational assessment.",
+            status="success",
+        )
 
     # ========================================================
     # MAKE CURRENT MEMORY AVAILABLE TO AGENT
@@ -672,6 +685,21 @@ def run_agent(
 
     )
 
+    if incident_id:
+        reasoning_str = ""
+        if isinstance(response, dict):
+            reasoning_str = response.get("reasoning", "")
+        WorkflowService.record_event(
+            incident_id=incident_id,
+            sender_agent_id=agent.name,
+            receiver_agent_id="CoordinatorAgent",
+            event_type="agent_action_completed",
+            message=f"{agent.name} recommendation: {decision}",
+            status="success",
+            action=str(decision),
+            result=str(reasoning_str),
+            metadata={"confidence": response.get("confidence") if isinstance(response, dict) else None},
+        )
 
     return response
 
@@ -910,6 +938,17 @@ def memory_storage_node(
             f"{event_id}"
         )
 
+        WorkflowService.record_event(
+            incident_id=event_id,
+            sender_agent_id="CoordinatorAgent",
+            receiver_agent_id="System",
+            event_type="incident_resolved",
+            message="Multi-agent response plan finalized, synchronized, and stored to system memory.",
+            status="success",
+            action="finalize_plan",
+            result="completed",
+        )
+
 
     except Exception as e:
 
@@ -917,6 +956,25 @@ def memory_storage_node(
             "❌ Memory storage error:",
             e
         )
+
+        # --------------------------------------------------------
+        # CLOUDINARY ROLLBACK
+        # If DB save failed, delete Cloudinary assets so they are
+        # not orphaned (only if the event has cloudinary metadata)
+        # --------------------------------------------------------
+        cloudinary_images = event.get("cloudinary_images", [])
+        if cloudinary_images:
+            print(
+                f"⚠️ DB save failed. Attempting to roll back "
+                f"{len(cloudinary_images)} Cloudinary asset(s) for event {event_id}..."
+            )
+            for cld_img in cloudinary_images:
+                pub_id = cld_img.get("public_id")
+                if pub_id:
+                    try:
+                        delete_image_from_cloudinary(pub_id)
+                    except Exception as del_err:
+                        print(f"⚠️ Cloudinary rollback failed for {pub_id}: {del_err}")
 
 
     print(

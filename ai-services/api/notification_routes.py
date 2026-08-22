@@ -11,7 +11,8 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from database.mongodb import notifications_collection
+from database.mongodb import notifications_collection, disaster_events_collection
+from services.twilio_service import send_sms_alert, build_incident_sms
 
 router = APIRouter(prefix="/api", tags=["Notifications"])
 
@@ -98,6 +99,38 @@ def send_notification(body: NotificationRequest):
         f"Incident: {body.incidentId[:8].upper()} | "
         f"Recipients: {[r['label'] for r in resolved]}"
     )
+
+    # --------------------------------------------------------
+    # TWILIO SMS ALERT
+    # Triggered only after a valid, persisted notification.
+    # Failures are logged and never affect the incident workflow.
+    # --------------------------------------------------------
+    try:
+        incident_doc = disaster_events_collection.find_one(
+            {"event_id": body.incidentId}, {"_id": 0}
+        ) or {}
+
+        sms_body = build_incident_sms(
+            incident_id=body.incidentId,
+            disaster_type=incident_doc.get("disaster_type", "Unknown"),
+            severity=incident_doc.get("severity"),
+            location=incident_doc.get("location", "Unknown"),
+            summary=incident_doc.get("summary", body.message),
+        )
+
+        twilio_result = send_sms_alert(sms_body)
+
+        if twilio_result["success"]:
+            for r in twilio_result.get("results", []):
+                if r.get("success"):
+                    print(f"📱 Twilio SMS dispatched | SID: {r.get('sid')} | To: {r.get('to')}")
+                else:
+                    print(f"⚠️ Twilio notification failed: {r.get('error')} | To: {r.get('to')}")
+        else:
+            print(f"⚠️ Twilio notification failed: {twilio_result.get('error')}")
+
+    except Exception as twilio_exc:
+        print(f"⚠️ Twilio notification failed: {twilio_exc}")
 
     return {
         "success":          True,

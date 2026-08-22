@@ -20,14 +20,17 @@ import {
   FaHospital,
   FaChevronLeft,
   FaCheckCircle,
+  FaProjectDiagram,
 } from "react-icons/fa";
 import NotificationPanel from "./NotificationPanel";
 import DelegationPanel from "./DelegationPanel";
+import AgentWorkflowPanel from "./AgentWorkflowPanel";
 
 const TABS = [
-  { id: "details",      label: "Incident Details",     icon: FaShieldAlt },
-  { id: "notify",       label: "Notifications",         icon: FaBell },
-  { id: "delegation",   label: "Delegation Center",     icon: FaTasks },
+  { id: "workflow",   label: "Agent Workflow",    icon: FaProjectDiagram },
+  { id: "details",    label: "Incident Details",  icon: FaShieldAlt },
+  { id: "notify",     label: "Notifications",     icon: FaBell },
+  { id: "delegation", label: "Delegation Center", icon: FaTasks },
 ];
 
 function ImpactBadge({ level }) {
@@ -71,28 +74,83 @@ function IncidentDetailsTab({ incident }) {
 
   return (
     <div className="space-y-5">
-      {/* Evidence Image Card (if uploaded) */}
-      {imageUrl && (
-        <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3">
-          <div className="flex items-center justify-between">
+      {/* Image Validation & Evidence Section */}
+      {(imageUrl || (incident.image_validation && incident.image_validation.length > 0)) && (
+        <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <p className="text-xs text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Verified Disaster Evidence Photo
+              Image Upload & Validation Report
             </p>
-            <span className="px-2.5 py-0.5 rounded-lg bg-emerald-950/80 border border-emerald-700 text-emerald-300 text-[11px] font-bold">
-              Attached Evidence
-            </span>
+            <div className="flex items-center gap-2">
+              {incident.total_images > 0 && (
+                <span className="px-2.5 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-[11px] font-mono">
+                  {incident.valid_images || (imageUrl ? 1 : 0)} / {incident.total_images || 1} Valid
+                </span>
+              )}
+            </div>
           </div>
-          <div className="relative rounded-xl overflow-hidden border border-slate-700 bg-slate-900 max-h-80 flex items-center justify-center">
-            <img
-              src={imageUrl}
-              alt={`Evidence for ${incident.type}`}
-              className="w-full h-full max-h-80 object-cover hover:scale-105 transition-transform duration-300"
-              onError={(e) => {
-                e.target.style.display = "none";
-              }}
-            />
-          </div>
+
+          {imageUrl && (
+            <div className="relative rounded-xl overflow-hidden border border-slate-700 bg-slate-900 max-h-80 flex items-center justify-center">
+              <img
+                src={imageUrl}
+                alt={`Evidence for ${incident.type}`}
+                className="w-full h-full max-h-80 object-cover hover:scale-105 transition-transform duration-300"
+                onError={(e) => {
+                  e.target.style.display = "none";
+                }}
+              />
+            </div>
+          )}
+
+          {/* Per-Image Detailed Validation Breakdown */}
+          {Array.isArray(incident.image_validation) && incident.image_validation.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <p className="text-[11px] text-slate-500 font-mono uppercase tracking-wider">Per-Image Verification Log</p>
+              <div className="space-y-2">
+                {incident.image_validation.map((item, idx) => {
+                  const isValid = item.valid === true || item.accepted === true || item.status === "VALID" || item.relevant === true;
+                  return (
+                    <div
+                      key={idx}
+                      className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs ${
+                        isValid
+                          ? "bg-emerald-950/30 border-emerald-800/80 text-emerald-200"
+                          : "bg-red-950/30 border-red-800/80 text-red-200"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
+                          #{item.image_index || idx + 1}
+                        </span>
+                        <span className="font-medium truncate">{item.filename || `Image ${item.image_index || idx + 1}`}</span>
+                        {item.predicted_label && item.predicted_label !== "none" && (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-slate-900/60 border border-slate-700 text-slate-300 font-mono">
+                            {item.predicted_label}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="italic text-[11px] text-slate-300 max-w-xs truncate">
+                          {item.reason}
+                        </span>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider ${
+                            isValid
+                              ? "bg-emerald-950/80 text-emerald-300 border-emerald-700"
+                              : "bg-red-950/80 text-red-300 border-red-700"
+                          }`}
+                        >
+                          {isValid ? "VALID" : "INVALID"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -213,7 +271,7 @@ function IncidentDetailsTab({ incident }) {
 // ──────────────────────────────────────────────────────────────
 
 export default function AdminCommandCenter({ incident, onBack }) {
-  const [activeTab, setActiveTab] = useState("details");
+  const [activeTab, setActiveTab] = useState("workflow");
 
   return (
     <motion.div
@@ -297,6 +355,7 @@ export default function AdminCommandCenter({ incident, onBack }) {
 
       {/* Tab Content */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl min-h-64">
+        {activeTab === "workflow"   && <AgentWorkflowPanel incident={incident} />}
         {activeTab === "details"    && <IncidentDetailsTab incident={incident} />}
         {activeTab === "notify"     && <NotificationPanel incident={incident} />}
         {activeTab === "delegation" && <DelegationPanel incident={incident} />}

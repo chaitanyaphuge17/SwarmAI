@@ -774,55 +774,24 @@ class MemoryManager:
             return None
 
     # =========================================================
-    # DELETE EVENT
+    # DELETE EVENT (DISABLED — disaster records are permanent)
     # =========================================================
 
     def delete_event(
         self,
         event_id
     ):
-
-        if not event_id:
-
-            return False
-
-        try:
-
-            result = (
-                self.events_collection.delete_one(
-
-                    {
-                        "event_id":
-                            event_id
-                    }
-
-                )
-            )
-
-            if result.deleted_count > 0:
-
-                print(
-                    f"🗑️ Disaster memory deleted: "
-                    f"{event_id}"
-                )
-
-                return True
-
-            print(
-                f"⚠️ Event not found: "
-                f"{event_id}"
-            )
-
-            return False
-
-        except Exception as e:
-
-            print(
-                "❌ Event deletion error:",
-                e
-            )
-
-            return False
+        """
+        Disaster record deletion is permanently disabled.
+        Disaster records are immutable and must be preserved for
+        historical accuracy, audit trails, and legal compliance.
+        This method intentionally performs no database operation.
+        """
+        print(
+            f"⛔ delete_event called for {event_id} — "
+            "disaster deletion is disabled. No data was modified."
+        )
+        return False
 
     # =========================================================
     # DATABASE HEALTH CHECK

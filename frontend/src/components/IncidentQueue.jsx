@@ -129,10 +129,17 @@ export default function IncidentQueue({ onOpenIncident }) {
             </div>
 
             {/* Evidence Thumbnail (if available) */}
-            {incident.imageUrl && (
+            {(incident.thumbnailUrl || incident.imageUrl) && (
               <div className="mb-3 h-28 w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-800 relative">
                 <img
-                  src={incident.imageUrl.startsWith("http") ? incident.imageUrl : `http://127.0.0.1:8000${incident.imageUrl}`}
+                  src={
+                    // Prefer Cloudinary-optimized thumbnail; fall back to legacy local URL
+                    incident.thumbnailUrl
+                      ? incident.thumbnailUrl
+                      : incident.imageUrl.startsWith("http")
+                        ? incident.imageUrl
+                        : `http://127.0.0.1:8000${incident.imageUrl}`
+                  }
                   alt=""
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   onError={(e) => {

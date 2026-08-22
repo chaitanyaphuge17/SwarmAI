@@ -17,24 +17,41 @@ if not MONGODB_URI:
 # ROBUST CONNECTION POOL
 # ============================================================
 
-client = MongoClient(
-    MONGODB_URI,
-    maxPoolSize=50,
-    minPoolSize=5,
-    maxIdleTimeMS=45000,
-    serverSelectionTimeoutMS=5000,
-    connectTimeoutMS=5000,
-    retryWrites=True,
-)
+try:
+    client = MongoClient(
+        MONGODB_URI,
+        maxPoolSize=50,
+        minPoolSize=1,
+        maxIdleTimeMS=45000,
+        serverSelectionTimeoutMS=30000,   # 30s — survive slow DNS on reload
+        connectTimeoutMS=10000,
+        socketTimeoutMS=30000,
+        retryWrites=True,
+        # Prevent blocking DNS resolution from crashing the import
+        connect=False,
+    )
+    db = client[MONGODB_DATABASE]
+    logger.info("MongoDB client initialised (lazy connection).")
+except Exception as _mongo_init_err:
+    logger.error(f"MongoDB client failed to initialise: {_mongo_init_err}")
+    client = None  # type: ignore[assignment]
+    db = None      # type: ignore[assignment]
 
-db = client[MONGODB_DATABASE]
+def _require_db():
+    """Raises a clear error if the MongoDB client failed to initialise."""
+    if db is None:
+        raise RuntimeError(
+            "MongoDB client is unavailable. Check MONGODB_URI and network connectivity."
+        )
+    return db
 
 # Core Collections
-disaster_events_collection = db["disaster_events"]
-disasters_collection = db["disasters"]
-assignments_collection = db["assignments"]
-notifications_collection = db["notifications"]
-admin_users_collection = db["admin_users"]
+disaster_events_collection = _require_db()["disaster_events"] if db is not None else None
+disasters_collection       = _require_db()["disasters"]        if db is not None else None
+assignments_collection     = _require_db()["assignments"]      if db is not None else None
+notifications_collection   = _require_db()["notifications"]    if db is not None else None
+workflow_events_collection = _require_db()["workflow_events"]  if db is not None else None
+admin_users_collection     = _require_db()["admin_users"]      if db is not None else None
 
 
 # ============================================================
@@ -75,6 +92,12 @@ def init_indexes():
 
         # 4. admin_users indexes
         admin_users_collection.create_index([("username", ASCENDING)], unique=True)
+
+        # 5. workflow_events indexes (Strict incident isolation & high-speed timeline)
+        workflow_events_collection.create_index([("id", ASCENDING)], unique=True)
+        workflow_events_collection.create_index([("incident_id", ASCENDING), ("created_at", ASCENDING)])
+        workflow_events_collection.create_index([("sender_agent_id", ASCENDING)])
+        workflow_events_collection.create_index([("event_type", ASCENDING)])
 
         print("🛡️ Database indexes initialized and verified.")
     except Exception as e:

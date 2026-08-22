@@ -22,6 +22,7 @@ from services.conflict_checker import (
     get_teams,
     get_vehicles,
 )
+from services.workflow_service import WorkflowService
 
 router = APIRouter(prefix="/api", tags=["Delegation"])
 
@@ -171,6 +172,24 @@ def confirm_delegation(body: DelegationConfirmRequest):
 
     try:
         assignments_collection.insert_one(record)
+        WorkflowService.record_event(
+            incident_id=body.incidentId,
+            sender_agent_id="Admin",
+            receiver_agent_id=body.teamId,
+            event_type="agent_assigned",
+            message=f"Delegated task '{body.task}' to team {body.teamId}" + (f" with vehicle {body.vehicleId}" if body.vehicleId else "") + ".",
+            status="active",
+            action="delegate_task",
+            result="assignment_confirmed",
+            metadata={
+                "teamId": body.teamId,
+                "vehicleId": body.vehicleId,
+                "task": body.task,
+                "startTime": body.startTime,
+                "endTime": body.endTime,
+                "override": body.override,
+            }
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500,

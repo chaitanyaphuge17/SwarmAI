@@ -75,6 +75,10 @@ from api.delegation_routes import (
     router as delegation_router
 )
 
+from api.workflow_routes import (
+    router as workflow_router
+)
+
 from api.auth_routes import (
     router as auth_router
 )
@@ -252,6 +256,7 @@ app.include_router(
 app.include_router(incident_router)
 app.include_router(notification_router)
 app.include_router(delegation_router)
+app.include_router(workflow_router)
 app.include_router(auth_router)
 app.include_router(auth_router, prefix="")
 

@@ -8,6 +8,7 @@ so the Admin Dashboard can display the incident queue.
 from fastapi import APIRouter, HTTPException
 
 from shared.memory_manager import MemoryManager
+from services.cloudinary_service import get_cloudinary_thumbnail
 
 router = APIRouter(prefix="/api", tags=["Incidents"])
 
@@ -65,13 +66,15 @@ def get_incidents(limit: int = 50):
         else:
             severity_label = "low"
 
+        image_url_raw = evt.get("imageUrl") or evt.get("image_url") or ""
         incidents.append({
             "id":                 incident_id,
             "short_id":           incident_id[:8].upper() if incident_id else "",
             "type":               evt.get("disaster_type") or evt.get("disaster", "Unknown"),
             "location":           evt.get("location", "Unknown"),
             "description":        evt.get("description", ""),
-            "imageUrl":           evt.get("imageUrl") or evt.get("image_url") or "",
+            "imageUrl":           image_url_raw,
+            "thumbnailUrl":       get_cloudinary_thumbnail(image_url_raw),
             "severity":           severity_num,
             "severityLabel":      severity_label,
             "status":             evt.get("status", "validated"),
@@ -87,6 +90,11 @@ def get_incidents(limit: int = 50):
             "infrastructure":     evt.get("infrastructure_damage", []),
             "latitude":           evt.get("latitude"),
             "longitude":          evt.get("longitude"),
+            "image_validation":   evt.get("image_validation", []),
+            "total_images":       evt.get("total_images", 0),
+            "valid_images":       evt.get("valid_images", 0),
+            "rejected_images":    evt.get("rejected_images", 0),
+            "cloudinary_images":  evt.get("cloudinary_images", []),
             "createdAt":          str(evt.get("created_at", "")),
         })
 
@@ -128,13 +136,15 @@ def get_incident(event_id: str):
     else:
         severity_label = "low"
 
+    image_url_raw = evt.get("imageUrl") or evt.get("image_url") or ""
     return {
         "id":                 evt.get("event_id", ""),
         "short_id":           evt.get("event_id", "")[:8].upper() if evt.get("event_id") else "",
         "type":               evt.get("disaster_type") or evt.get("disaster", "Unknown"),
         "location":           evt.get("location", "Unknown"),
         "description":        evt.get("description", ""),
-        "imageUrl":           evt.get("imageUrl") or evt.get("image_url") or "",
+        "imageUrl":           image_url_raw,
+        "thumbnailUrl":       get_cloudinary_thumbnail(image_url_raw),
         "severity":           severity_num,
         "severityLabel":      severity_label,
         "status":             evt.get("status", "validated"),
@@ -150,6 +160,11 @@ def get_incident(event_id: str):
         "infrastructure":     evt.get("infrastructure_damage", []),
         "latitude":           evt.get("latitude"),
         "longitude":          evt.get("longitude"),
+        "image_validation":   evt.get("image_validation", []),
+        "total_images":       evt.get("total_images", 0),
+        "valid_images":       evt.get("valid_images", 0),
+        "rejected_images":    evt.get("rejected_images", 0),
+        "cloudinary_images":  evt.get("cloudinary_images", []),
         "createdAt":          str(evt.get("created_at", "")),
     }
 

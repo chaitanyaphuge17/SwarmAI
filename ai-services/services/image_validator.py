@@ -1,13 +1,14 @@
 """
 Local Image Validation Engine for SwarmAI Disaster Management System.
 Uses local pretrained PyTorch / HuggingFace model (google/siglip-base-patch16-224 or VISION_MODEL_NAME).
-No Groq calls for basic image classification.
+After SigLIP classification, a Groq geo-consistency check is performed as a second gate.
 Validates disaster images, geographic plausibility against location, and description consistency.
 """
 
 import io
 import os
 import re
+import json
 import threading
 import asyncio
 from typing import List, Dict, Any, Tuple, Optional
@@ -15,6 +16,12 @@ from PIL import Image
 
 import torch
 from transformers import AutoProcessor, AutoModel
+from groq import Groq
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from services.geo_validation_service import GeoValidationService
 
 # ============================================================
 # CONFIGURATION
@@ -137,6 +144,14 @@ NON_DISASTER_LABELS = [
     "document or screenshot",
     "unrelated object",
     "ordinary landscape",
+    "house or residential building",
+    "car or parked vehicle",
+    "city street with normal traffic",
+    "sky or clouds",
+    "pet or animal",
+    "indoor room or furniture",
+    "food or drink",
+    "office desk or computer",
 ]
 
 LABEL_CANONICAL_MAP = {
@@ -179,6 +194,14 @@ LABEL_CANONICAL_MAP = {
     "document or screenshot": "non_disaster",
     "unrelated object": "non_disaster",
     "ordinary landscape": "non_disaster",
+    "house or residential building": "non_disaster",
+    "car or parked vehicle": "non_disaster",
+    "city street with normal traffic": "non_disaster",
+    "sky or clouds": "non_disaster",
+    "pet or animal": "non_disaster",
+    "indoor room or furniture": "non_disaster",
+    "food or drink": "non_disaster",
+    "office desk or computer": "non_disaster",
 }
 
 
@@ -342,6 +365,76 @@ def evaluate_description_consistency(user_description: str, predicted_disaster_t
 
 
 # ============================================================
+# GROQ GEO-CONSISTENCY VALIDATOR
+# ============================================================
+
+_GROQ_GEO_CLIENT: Optional[Groq] = None
+_GROQ_API_KEY: Optional[str] = None
+
+
+def _get_groq_client() -> Optional[Groq]:
+    """Lazy-initialise Groq client. Returns None if API key is missing."""
+    global _GROQ_GEO_CLIENT, _GROQ_API_KEY
+    if _GROQ_GEO_CLIENT is not None:
+        return _GROQ_GEO_CLIENT
+    key = os.getenv("GROQ_API_KEY")
+    if not key:
+        safe_print("⚠️  GROQ_API_KEY not found — geo-validation will fail-safe to INVALID.")
+        return None
+    _GROQ_API_KEY = key
+    _GROQ_GEO_CLIENT = Groq(api_key=key)
+    return _GROQ_GEO_CLIENT
+
+
+GROQ_GEO_MODEL = os.getenv("GROQ_GEO_MODEL", "llama-3.1-8b-instant")
+GROQ_GEO_TIMEOUT_SECONDS = float(os.getenv("GROQ_GEO_TIMEOUT", "10"))
+
+_GEO_VALIDATION_PROMPT_TEMPLATE = """\
+You are a disaster geography validator.
+
+Given a location and a disaster type, determine whether this disaster is geographically plausible for that location.
+
+Consider:
+* climate
+* terrain
+* historical disaster patterns
+* seasonal plausibility
+* geography
+
+Respond ONLY with a valid JSON object. No explanation, no markdown formatting, no text before or after the JSON.
+
+Example response format:
+{{"location_match": true, "confidence": 0.95, "reason": "Floods are geographically plausible in Ahmedabad during monsoon conditions."}}
+or
+{{"location_match": false, "confidence": 0.93, "reason": "This disaster is geographically inconsistent with the reported location."}}
+"""
+
+
+async def groq_geo_validate(
+    incident_location: str,
+    reported_disaster: str = "",
+    detected_disaster: str = "",
+) -> Dict[str, Any]:
+    """
+    Validates whether the detected disaster type is geographically plausible for the given location
+    using the new deterministic rules-based GeoValidationService.
+    Returns a dict with keys: valid, location_match, confidence, reason.
+    """
+    target_disaster = detected_disaster or reported_disaster or "Unknown"
+
+    # Delegate validation to GeoValidationService
+    geo_res = await GeoValidationService.validate_geographic_plausibility(incident_location, target_disaster)
+
+    return {
+        "valid": geo_res["valid"],
+        "location_match": geo_res["valid"],
+        "confidence": geo_res["confidence"],
+        "reason": geo_res["reason"],
+    }
+
+
+
+# ============================================================
 # LOCAL MODEL CLASSIFIER (Comparative Scoring)
 # ============================================================
 
@@ -349,14 +442,15 @@ def classify_image_locally(pil_image: Image.Image) -> Dict[str, Any]:
     """
     Classifies a PIL RGB image using local SigLIP model.
     Uses comparative scoring (strongest disaster label vs strongest non-disaster label)
-    to eliminate label-count bias.
+    with formatted prompts ('a photo of {label}') to eliminate label-count bias.
     """
     model, processor = get_model()
 
     labels = DISASTER_LABELS + NON_DISASTER_LABELS
+    formatted_labels = [f"a photo of {label}" for label in labels]
 
     inputs = processor(
-        text=labels,
+        text=formatted_labels,
         images=pil_image,
         return_tensors="pt",
         padding="max_length",
@@ -368,7 +462,7 @@ def classify_image_locally(pil_image: Image.Image) -> Dict[str, Any]:
         outputs = model(**inputs)
 
     logits = outputs.logits_per_image[0]
-    probs = torch.softmax(logits, dim=-1).cpu().tolist()
+    probs = torch.sigmoid(logits).cpu().tolist()
 
     disaster_probs = probs[:len(DISASTER_LABELS)]
     non_disaster_probs = probs[len(DISASTER_LABELS):]
@@ -401,21 +495,53 @@ def classify_image_locally(pil_image: Image.Image) -> Dict[str, Any]:
     }
 
 
+def normalize_disaster_type(d: str) -> str:
+    d_clean = d.lower().strip()
+    if "flood" in d_clean or "tide" in d_clean or "tsunami" in d_clean or "water" in d_clean:
+        return "flood"
+    if "fire" in d_clean or "wildfire" in d_clean or "smoke" in d_clean or "blaze" in d_clean or "burn" in d_clean:
+        return "fire"
+    if "earthquake" in d_clean or "quake" in d_clean:
+        return "earthquake"
+    if "landslide" in d_clean or "slide" in d_clean:
+        return "landslide"
+    if "collapse" in d_clean:
+        return "collapse"
+    if "accident" in d_clean or "crash" in d_clean or "road" in d_clean:
+        return "accident"
+    return d_clean
+
+
+def check_disaster_match(detected: str, reported: str) -> bool:
+    if not reported or reported.lower().strip() in ["", "unknown", "none"]:
+        return True
+    return normalize_disaster_type(detected) == normalize_disaster_type(reported)
+
+
 # ============================================================
 # INDEPENDENT SINGLE IMAGE PROCESSOR
 # ============================================================
 
-def process_single_image(
+async def process_single_image(
     image_data: Dict[str, Any],
     location: str = "",
-    user_description: str = ""
+    user_description: str = "",
+    reported_disaster: str = "",
 ) -> Dict[str, Any]:
     """
-    Independently evaluates a single image against byte rules, vision model, location rules, and description rules.
+    Independently evaluates a single image against byte rules, vision model,
+    Groq geo-consistency, location rules, and description rules.
     """
     image_index = image_data.get("image_index", 1)
     filename = image_data.get("filename", f"image_{image_index}")
     image_bytes = image_data.get("image_bytes")
+
+    _groq_defaults = {
+        "groq_valid": False,
+        "groq_location_match": False,
+        "groq_confidence": 0.0,
+        "groq_reason": "Not evaluated.",
+    }
 
     # Step 1: Byte validation
     byte_result = validate_image_bytes(image_bytes, filename=filename)
@@ -436,16 +562,17 @@ def process_single_image(
             "vision_relevant": False,
             "description_match": False,
             "geographic_status": "location_unverified",
-            "reason": byte_result["reason"]
+            "reason": byte_result["reason"],
+            **_groq_defaults,
         }
 
     pil_img = byte_result["pil_image"]
 
-    # Step 2: Vision model classification
+    # Step 2: Vision model classification (sync — runs in thread via caller)
     try:
-        cls_res = classify_image_locally(pil_img)
+        cls_res = await asyncio.to_thread(classify_image_locally, pil_img)
     except Exception as error:
-        print(f"❌ Local classification error on image {image_index} ({filename}): {error}")
+        safe_print(f"❌ Local classification error on image {image_index} ({filename}): {error}")
         return {
             "image_index": image_index,
             "filename": filename,
@@ -460,32 +587,64 @@ def process_single_image(
             "vision_relevant": False,
             "description_match": False,
             "geographic_status": "location_unverified",
-            "reason": f"Model inference failed: {str(error)}"
+            "reason": f"Model inference failed: {str(error)}",
+            **_groq_defaults,
         }
 
     vision_relevant = cls_res["vision_relevant"]
     pred_type = cls_res["predicted_disaster_type"]
     pred_label = cls_res["predicted_label"]
 
-    # Step 3: Geographic plausibility evaluation
+    # Step 3: Geographic plausibility (local keyword rules)
     geo_status, geo_reason = evaluate_geographic_plausibility(location, pred_type)
 
-    # Step 4: Description consistency evaluation
+    # Step 4: Description consistency
     desc_match, desc_reason = evaluate_description_consistency(user_description, pred_type)
 
-    # Step 5: Decision logic
+    # Validate that the disaster agent's detected disaster matches the incident disaster
+    disaster_matched = check_disaster_match(pred_type, reported_disaster)
+
+    # Step 5: Groq geo-consistency check — runs for all vision-accepted, description-consistent and matching disaster images.
+    # The local keyword geo check (Step 3) is informational only; Groq is the authoritative geo judge.
+    groq_result = {
+        "valid": False,
+        "location_match": False,
+        "confidence": 0.0,
+        "reason": "Not evaluated (image failed local checks).",
+    }
+
+    if vision_relevant and desc_match and disaster_matched:
+        safe_print(
+            f"🌐 Running Groq geo-consistency check for image {image_index} "
+            f"({filename}) — location: '{location}', disaster: '{pred_type}'"
+        )
+        groq_result = await groq_geo_validate(
+            incident_location=location,
+            reported_disaster=reported_disaster,
+            detected_disaster=pred_type,
+        )
+        safe_print(
+            f"  Groq result: location_match={groq_result['location_match']}, "
+            f"confidence={groq_result['confidence']}, "
+            f"reason={groq_result['reason']!r}"
+        )
+
+    # Step 6: Final decision — Groq is the geo authority; local geo check is informational only.
     if not vision_relevant:
         accepted = False
         reason = f"Image shows non-disaster content ('{cls_res['strongest_non_disaster_label']}')."
-    elif geo_status == "geographically_implausible":
-        accepted = False
-        reason = geo_reason
     elif not desc_match:
         accepted = False
         reason = desc_reason
+    elif not disaster_matched:
+        accepted = False
+        reason = f"Detected disaster type '{pred_type}' does not match the reported disaster type '{reported_disaster}'."
+    elif not groq_result["location_match"]:
+        accepted = False
+        reason = f"Geo-consistency check failed: {groq_result['reason']}"
     else:
         accepted = True
-        reason = f"The image shows {pred_label}."
+        reason = f"The image shows {pred_label}. {groq_result['reason']}".strip()
 
     return {
         "image_index": image_index,
@@ -503,6 +662,10 @@ def process_single_image(
         "geographic_status": geo_status,
         "reason": reason,
         "image_url": image_data.get("image_url", ""),
+        "groq_valid": groq_result["valid"],
+        "groq_location_match": groq_result["location_match"],
+        "groq_confidence": groq_result["confidence"],
+        "groq_reason": groq_result["reason"],
     }
 
 
@@ -513,7 +676,8 @@ def process_single_image(
 async def validate_disaster_images(
     images: List[Dict[str, Any]],
     location: str = "",
-    user_description: str = ""
+    user_description: str = "",
+    reported_disaster: str = "",
 ) -> Dict[str, Any]:
     """
     Validates up to 2 uploaded images independently.
@@ -548,11 +712,11 @@ async def validate_disaster_images(
         if "image_index" not in img_item:
             img_item["image_index"] = idx
 
-        res = await asyncio.to_thread(
-            process_single_image,
+        res = await process_single_image(
             image_data=img_item,
             location=location,
-            user_description=user_description
+            user_description=user_description,
+            reported_disaster=reported_disaster,
         )
 
         if res["accepted"]:

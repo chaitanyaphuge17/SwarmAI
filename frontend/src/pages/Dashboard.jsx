@@ -6,20 +6,26 @@ import DisasterInputPanel from "../components/DisasterInputPanel";
 import WelcomeScreen from "../components/WelcomeScreen";
 import AnalysisScreen from "../components/AnalysisScreen";
 import ResponseView from "../components/ResponseView";
+import MapDashboard from "../components/MapDashboard";
 import IncidentQueue from "../components/IncidentQueue";
 import AdminCommandCenter from "../components/AdminCommandCenter";
 import AdminLogin from "../components/AdminLogin";
 
 import useDashboardData from "../hooks/useDashboardData";
 import useGeolocation from "../hooks/useGeolocation";
-import { getAdminSession, logoutAdmin } from "../services/adminService";
+import {
+  getAdminSession,
+  logoutAdmin,
+} from "../services/adminService";
 
 export default function Dashboard() {
   // ============================================================
   // ADMIN AUTHENTICATION STATE
   // ============================================================
 
-  const [adminSession, setAdminSession] = useState(() => getAdminSession());
+  const [adminSession, setAdminSession] = useState(() =>
+    getAdminSession()
+  );
 
   // ============================================================
   // DASHBOARD / BACKEND STATE
@@ -30,6 +36,34 @@ export default function Dashboard() {
     loading,
     error,
   } = useDashboardData();
+
+  // ============================================================
+  // THEME — listen for Navbar swarmai-theme-change events so
+  // pageStyle re-renders whenever the user toggles light/dark.
+  // ============================================================
+
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === "undefined") return "dark";
+    const saved = localStorage.getItem("swarmai-theme");
+    return saved === "light" || saved === "dark" ? saved : "dark";
+  });
+
+  useEffect(() => {
+    const handleThemeChange = (e) => {
+      const next = e?.detail?.theme;
+      if (next === "light" || next === "dark") setTheme(next);
+    };
+    const handleStorage = (e) => {
+      if (e.key !== "swarmai-theme") return;
+      if (e.newValue === "light" || e.newValue === "dark") setTheme(e.newValue);
+    };
+    window.addEventListener("swarmai-theme-change", handleThemeChange);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("swarmai-theme-change", handleThemeChange);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
 
   // ============================================================
   // GEOLOCATION
@@ -63,23 +97,31 @@ export default function Dashboard() {
   // SCREEN & ROUTE STATE
   // ============================================================
 
-  const [currentStep, setCurrentStep] = useState("welcome");
+  const [currentStep, setCurrentStep] =
+    useState("welcome");
 
   // Possible states:
   // welcome
   // reporting
   // analyzing
   // response
-  // admin          ← Incident Queue (protected)
-  // admin-incident ← Incident Command Center (protected)
+  // admin
+  // admin-incident
 
-  const [adminIncident, setAdminIncident] = useState(null);
+  const [adminIncident, setAdminIncident] =
+    useState(null);
 
-  // Synchronize route with URL (/admin or #/admin)
+  // ============================================================
+  // SYNCHRONIZE ROUTE WITH URL
+  // ============================================================
+
   useEffect(() => {
     const syncRouteFromURL = () => {
-      const path = window.location.pathname.toLowerCase();
-      const hash = window.location.hash.toLowerCase();
+      const path =
+        window.location.pathname.toLowerCase();
+
+      const hash =
+        window.location.hash.toLowerCase();
 
       if (
         path === "/admin" ||
@@ -94,21 +136,44 @@ export default function Dashboard() {
 
     syncRouteFromURL();
 
-    window.addEventListener("popstate", syncRouteFromURL);
-    window.addEventListener("hashchange", syncRouteFromURL);
+    window.addEventListener(
+      "popstate",
+      syncRouteFromURL
+    );
+
+    window.addEventListener(
+      "hashchange",
+      syncRouteFromURL
+    );
 
     return () => {
-      window.removeEventListener("popstate", syncRouteFromURL);
-      window.removeEventListener("hashchange", syncRouteFromURL);
+      window.removeEventListener(
+        "popstate",
+        syncRouteFromURL
+      );
+
+      window.removeEventListener(
+        "hashchange",
+        syncRouteFromURL
+      );
     };
   }, []);
 
+  // ============================================================
+  // NAVIGATION
+  // ============================================================
+
   const navigateToHome = () => {
     try {
-      window.history.pushState(null, "", "/");
+      window.history.pushState(
+        null,
+        "",
+        "/"
+      );
     } catch {
       window.location.hash = "";
     }
+
     setCurrentStep("welcome");
   };
 
@@ -119,13 +184,20 @@ export default function Dashboard() {
 
   const handleLogout = () => {
     logoutAdmin();
+
     setAdminSession(null);
     setAdminIncident(null);
+
     try {
-      window.history.pushState(null, "", "/");
+      window.history.pushState(
+        null,
+        "",
+        "/"
+      );
     } catch {
       window.location.hash = "";
     }
+
     setCurrentStep("welcome");
   };
 
@@ -133,24 +205,41 @@ export default function Dashboard() {
   // DISASTER STATE
   // ============================================================
 
-  const [analyzingDisaster, setAnalyzingDisaster] =
-    useState(false);
+  const [
+    analyzingDisaster,
+    setAnalyzingDisaster,
+  ] = useState(false);
 
-  const [disasterInput, setDisasterInput] =
-    useState(null);
+  const [
+    disasterInput,
+    setDisasterInput,
+  ] = useState(null);
 
-  const [disasterAnalysis, setDisasterAnalysis] =
-    useState(null);
+  const [
+    disasterAnalysis,
+    setDisasterAnalysis,
+  ] = useState(null);
 
-  const [apiError, setApiError] =
-    useState(null);
+  const [
+    apiError,
+    setApiError,
+  ] = useState(null);
+
+  // Sub-tab within the response step: "analysis" | "map"
+  const [
+    responseTab,
+    setResponseTab,
+  ] = useState("analysis");
 
   // ============================================================
   // ANALYZE DISASTER
   // ============================================================
 
   const handleDisasterAnalyze = async (input) => {
-    console.log("🚨 DISASTER INPUT:", input);
+    console.log(
+      "🚨 DISASTER INPUT:",
+      input
+    );
 
     // ==========================================================
     // VALIDATE LOCATION
@@ -160,6 +249,7 @@ export default function Dashboard() {
       setApiError(
         "Please enter the disaster location."
       );
+
       return;
     }
 
@@ -174,6 +264,7 @@ export default function Dashboard() {
       setApiError(
         "Please upload or capture at least one disaster image."
       );
+
       return;
     }
 
@@ -185,6 +276,7 @@ export default function Dashboard() {
     setAnalyzingDisaster(true);
     setDisasterAnalysis(null);
     setApiError(null);
+    setResponseTab("analysis"); // always open analysis tab on new run
 
     setCurrentStep("analyzing");
 
@@ -210,6 +302,7 @@ export default function Dashboard() {
           "disaster_type",
           input.disasterType
         );
+
         formData.append(
           "disasterType",
           input.disasterType
@@ -218,9 +311,6 @@ export default function Dashboard() {
 
       // Backend expects:
       // images: list[UploadFile]
-      //
-      // Therefore all images must use
-      // the same field name: "images"
 
       input.images.forEach((image) => {
         formData.append(
@@ -296,9 +386,7 @@ export default function Dashboard() {
         response.data
       );
 
-      setCurrentStep(
-        "response"
-      );
+      setCurrentStep("response");
 
       console.log(
         "✅ Disaster analysis completed."
@@ -367,13 +455,9 @@ export default function Dashboard() {
       }
 
       // Go back to reporting screen
-      setCurrentStep(
-        "reporting"
-      );
+      setCurrentStep("reporting");
     } finally {
-      setAnalyzingDisaster(
-        false
-      );
+      setAnalyzingDisaster(false);
     }
   };
 
@@ -387,62 +471,139 @@ export default function Dashboard() {
     setApiError(null);
     setAnalyzingDisaster(false);
 
-    setCurrentStep(
-      "reporting"
-    );
+    setCurrentStep("reporting");
   };
 
   // ============================================================
-  // ADMIN PORTAL (PROTECTED)
+  // GLOBAL PAGE STYLE  (reactive to theme state)
   // ============================================================
 
-  if (currentStep === "admin" || currentStep === "admin-incident") {
-    // If unauthenticated -> show login
+  const isDark = theme === "dark";
+
+  const pageStyle = {
+    backgroundColor: isDark ? "#020617" : "#f5f7fa",
+    color: isDark ? "#f8fafc" : "#111827",
+    transition: "background-color 0.3s, color 0.3s",
+  };
+
+  // ============================================================
+  // ADMIN PORTAL
+  // ============================================================
+
+  if (
+    currentStep === "admin" ||
+    currentStep === "admin-incident"
+  ) {
+    // ----------------------------------------------------------
+    // UNAUTHENTICATED ADMIN
+    // ----------------------------------------------------------
+
     if (!adminSession) {
       return (
-        <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-          <Navbar onHome={navigateToHome} />
+        <div
+          className="
+            min-h-screen
+            flex flex-col
+            transition-colors
+            duration-300
+          "
+          style={pageStyle}
+        >
+          <Navbar
+            onHome={navigateToHome}
+          />
+
           <main className="flex-1 flex flex-col justify-center">
             <AdminLogin
-              onLoginSuccess={handleLoginSuccess}
-              onBackToCitizen={navigateToHome}
+              onLoginSuccess={
+                handleLoginSuccess
+              }
+              onBackToCitizen={
+                navigateToHome
+              }
             />
           </main>
         </div>
       );
     }
 
-    // If authenticated -> show Command Center or Queue
+    // ----------------------------------------------------------
+    // AUTHENTICATED ADMIN
+    // ----------------------------------------------------------
+
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      <div
+        className="
+          min-h-screen
+          flex flex-col
+          transition-colors
+          duration-300
+        "
+        style={pageStyle}
+      >
         <Navbar
           isAdminAuthenticated={true}
           onLogout={handleLogout}
           onHome={navigateToHome}
         />
 
-        <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-8">
-          {currentStep === "admin-incident" && adminIncident ? (
+        <main
+          className="
+            flex-1
+            max-w-6xl
+            w-full
+            mx-auto
+            p-4
+            sm:p-8
+          "
+        >
+          {currentStep ===
+            "admin-incident" &&
+            adminIncident ? (
             <AdminCommandCenter
               incident={adminIncident}
-              onBack={() => setCurrentStep("admin")}
+              onBack={() =>
+                setCurrentStep("admin")
+              }
             />
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={navigateToHome}
-                  className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 transition font-mono uppercase tracking-wider cursor-pointer"
+                  onClick={
+                    navigateToHome
+                  }
+                  className="
+                    flex
+                    items-center
+                    gap-2
+                    text-xs
+                    font-mono
+                    uppercase
+                    tracking-wider
+                    transition
+                  "
+                  style={{
+                    color:
+                      "var(--swarm-text-muted)",
+                  }}
                 >
                   ← Citizen Emergency Portal
                 </button>
               </div>
 
               <IncidentQueue
-                onOpenIncident={(incident) => {
-                  setAdminIncident(incident);
-                  setCurrentStep("admin-incident");
+                onOpenIncident={(
+                  incident
+                ) => {
+                  setAdminIncident(
+                    incident
+                  );
+
+                  setCurrentStep(
+                    "admin-incident"
+                  );
                 }}
               />
             </div>
@@ -460,7 +621,9 @@ export default function Dashboard() {
     return (
       <WelcomeScreen
         onBegin={() =>
-          setCurrentStep("reporting")
+          setCurrentStep(
+            "reporting"
+          )
         }
       />
     );
@@ -472,17 +635,40 @@ export default function Dashboard() {
 
   if (currentStep === "analyzing") {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      <div
+        className="
+          min-h-screen
+          flex flex-col
+          transition-colors
+          duration-300
+        "
+        style={pageStyle}
+      >
         <Navbar
-          isAdminAuthenticated={!!adminSession}
+          isAdminAuthenticated={
+            !!adminSession
+          }
           onLogout={handleLogout}
           onHome={navigateToHome}
         />
 
-        <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-8 flex flex-col justify-center">
+        <main
+          className="
+            flex-1
+            max-w-5xl
+            w-full
+            mx-auto
+            p-4
+            sm:p-8
+            flex
+            flex-col
+            justify-center
+          "
+        >
           <AnalysisScreen
             location={
-              disasterInput?.location || ""
+              disasterInput?.location ||
+              ""
             }
           />
         </main>
@@ -491,28 +677,117 @@ export default function Dashboard() {
   }
 
   // ============================================================
-  // RESPONSE SCREEN
+  // RESPONSE SCREEN — tabbed: Analysis Results / Response Map
   // ============================================================
 
   if (
     currentStep === "response" &&
     disasterAnalysis
   ) {
+    // Assemble the mapData object the same way ResponseView did
+    const ev = disasterAnalysis.event || {};
+    const loc = disasterAnalysis.location || {};
+    const respArr = Array.isArray(disasterAnalysis.responses) ? disasterAnalysis.responses : [];
+
+    const extractAgent = (name) => {
+      for (const item of respArr) {
+        if (!item) continue;
+        if (item[name]) return item[name];
+        if (item.agent === name) return item;
+        if (item.data?.agent === name) return item.data;
+      }
+      return null;
+    };
+
+    const trafficData = extractAgent("TrafficAgent");
+    const resourceData = extractAgent("ResourceAgent");
+    const routeCoords = Array.isArray(disasterAnalysis.route_coordinates) ? disasterAnalysis.route_coordinates : [];
+
+    const mapData = {
+      event: ev,
+      agents: { TrafficAgent: trafficData },
+      traffic_response: trafficData?.traffic_response,
+      resources: resourceData?.decision?.resources ?? {},
+      map: {
+        latitude: loc.latitude ?? ev.latitude,
+        longitude: loc.longitude ?? ev.longitude,
+        coordinates: routeCoords,
+        facilities: trafficData?.traffic_response?.nearby_facilities ?? [],
+        affectedArea: ev.disaster_type || ev.disaster || "Disaster",
+        location: loc.name || ev.location || "",
+      },
+      scenario: {
+        name: ev.disaster_type || ev.disaster || "Disaster Event",
+        location: loc.name || ev.location || "",
+      },
+      stats: { severity: typeof ev.severity === "number" ? ev.severity : 0 },
+    };
+
+    const TAB_ANALYSIS = "analysis";
+    const TAB_MAP = "map";
+
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      <div
+        className="min-h-screen flex flex-col transition-colors duration-300"
+        style={pageStyle}
+      >
         <Navbar
           isAdminAuthenticated={!!adminSession}
           onLogout={handleLogout}
           onHome={navigateToHome}
         />
 
-        <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-8">
-          <ResponseView
-            data={disasterAnalysis}
-            onReset={handleReset}
-            userLocation={userLocation}
-          />
-        </main>
+        {/* ── Tab Bar ────────────────────────────────────────── */}
+        <div
+          className="sticky top-[57px] z-30 border-b"
+          style={{
+            backgroundColor: isDark ? "#0f172a" : "#ffffff",
+            borderColor: isDark ? "#1e293b" : "#dbe3ec",
+          }}
+        >
+          <div className="max-w-6xl mx-auto px-4 sm:px-8 flex gap-0">
+            {[
+              { id: TAB_ANALYSIS, label: "Analysis Results" },
+              { id: TAB_MAP, label: "Response Map" },
+            ].map(({ id, label }) => {
+              const active = responseTab === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setResponseTab(id)}
+                  className="px-5 py-3.5 text-sm font-semibold tracking-wide border-b-2 transition-colors duration-150 focus:outline-none"
+                  style={{
+                    borderColor: active ? "#dc2626" : "transparent",
+                    color: active
+                      ? (isDark ? "#f8fafc" : "#111827")
+                      : (isDark ? "#64748b" : "#64748b"),
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Tab Content ─────────────────────────────────────── */}
+        {responseTab === TAB_ANALYSIS ? (
+          <main
+            className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-8"
+          >
+            <ResponseView
+              data={disasterAnalysis}
+              onReset={handleReset}
+              userLocation={userLocation}
+              onViewMap={() => setResponseTab(TAB_MAP)}
+            />
+          </main>
+        ) : (
+          <div className="flex-1 flex flex-col">
+            <MapDashboard data={mapData} />
+          </div>
+        )}
       </div>
     );
   }
@@ -523,19 +798,47 @@ export default function Dashboard() {
 
   if (currentStep === "reporting") {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      <div
+        className="
+          min-h-screen
+          flex flex-col
+          transition-colors
+          duration-300
+        "
+        style={pageStyle}
+      >
         <Navbar
-          isAdminAuthenticated={!!adminSession}
+          isAdminAuthenticated={
+            !!adminSession
+          }
           onLogout={handleLogout}
           onHome={navigateToHome}
         />
 
-        <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-8 flex flex-col justify-center">
+        <main
+          className="
+            flex-1
+            max-w-5xl
+            w-full
+            mx-auto
+            p-4
+            sm:p-8
+            flex
+            flex-col
+            justify-center
+          "
+        >
           <DisasterInputPanel
-            onAnalyze={handleDisasterAnalyze}
-            loading={analyzingDisaster}
+            onAnalyze={
+              handleDisasterAnalyze
+            }
+            loading={
+              analyzingDisaster
+            }
             apiError={apiError}
-            initialValues={disasterInput}
+            initialValues={
+              disasterInput
+            }
             onLocationDetected={
               handleLocationDetected
             }
@@ -551,7 +854,17 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+      <div
+        className="
+          min-h-screen
+          flex
+          items-center
+          justify-center
+          transition-colors
+          duration-300
+        "
+        style={pageStyle}
+      >
         Loading SwarmAI...
       </div>
     );
@@ -563,21 +876,56 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-red-400 gap-3">
-        <h2 className="text-xl font-bold">
+      <div
+        className="
+          min-h-screen
+          flex
+          flex-col
+          items-center
+          justify-center
+          gap-3
+          transition-colors
+          duration-300
+        "
+        style={pageStyle}
+      >
+        <h2
+          className="text-xl font-bold"
+          style={{
+            color:
+              "var(--swarm-primary, #dc2626)",
+          }}
+        >
           Backend Connection Failed
         </h2>
 
-        <p className="text-sm text-slate-400">
+        <p
+          className="text-sm"
+          style={{
+            color:
+              "var(--swarm-text-muted)",
+          }}
+        >
           {error?.message ||
             "Unable to connect to the backend."}
         </p>
 
         <button
+          type="button"
           onClick={() =>
-            setCurrentStep("reporting")
+            setCurrentStep(
+              "reporting"
+            )
           }
-          className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition"
+          className="
+            rounded-lg
+            bg-red-600
+            px-4
+            py-2
+            text-white
+            transition
+            hover:bg-red-700
+          "
         >
           Continue Anyway
         </button>

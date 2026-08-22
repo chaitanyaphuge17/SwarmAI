@@ -30,6 +30,14 @@ from orchestrator.langgraph_orchestrator import (
     graph
 )
 
+from services.workflow_service import WorkflowService
+
+from services.cloudinary_service import (
+    upload_image_to_cloudinary,
+    delete_image_from_cloudinary,
+    CLOUDINARY_CLOUD_NAME,
+)
+
 
 router = APIRouter()
 
@@ -555,13 +563,14 @@ async def analyze_disaster(
 
     print("\n")
     print("=" * 70)
-    print("🔍 RUNNING LOCAL VISION & GEOGRAPHIC VALIDATION")
+    print("🔍 RUNNING LOCAL VISION + GROQ GEO-CONSISTENCY VALIDATION")
     print("=" * 70)
 
     validation_summary = await validate_disaster_images(
         images=prepared_images,
         location=location,
-        user_description=description
+        user_description=description,
+        reported_disaster=user_disaster_type,
     )
 
     # --------------------------------------------------------
@@ -589,10 +598,12 @@ async def analyze_disaster(
 
 
     # ========================================================
-    # STEP 4: SAVE ONLY ACCEPTED IMAGES TO DISK
+    # STEP 4: UPLOAD ACCEPTED IMAGES TO CLOUDINARY
+    # (Falls back to local disk save if Cloudinary is not configured)
     # ========================================================
 
     valid_images = []
+    _cloudinary_uploaded_public_ids = []  # for rollback if orchestration fails
 
     for img in prepared_images:
         if img["image_index"] not in accepted_indices:
@@ -602,19 +613,51 @@ async def analyze_disaster(
         image_bytes = img["image_bytes"]
         content_type = img["content_type"]
         index = img["image_index"]
+        cloudinary_meta = None
 
-        file_ext = os.path.splitext(filename)[1].lower() or ".jpg"
-        saved_filename = f"incident_{event_id[:8]}_{index}{file_ext}"
-        saved_path = os.path.join(UPLOADS_DIR, saved_filename)
-
-        try:
-            with open(saved_path, "wb") as f_out:
-                f_out.write(image_bytes)
-            image_url = f"/uploads/{saved_filename}"
-            print(f"💾 Saved accepted image: {saved_path} -> {image_url}")
-        except Exception as save_err:
-            print("⚠️ Failed to save image to uploads:", save_err)
-            image_url = ""
+        # --------------------------------------------------------
+        # ATTEMPT CLOUDINARY UPLOAD
+        # --------------------------------------------------------
+        if CLOUDINARY_CLOUD_NAME:
+            try:
+                upload_filename = f"incident_{event_id[:8]}_{index}_{filename}"
+                cloudinary_meta = upload_image_to_cloudinary(
+                    image_bytes=image_bytes,
+                    filename=upload_filename,
+                )
+                image_url = cloudinary_meta["secure_url"]
+                _cloudinary_uploaded_public_ids.append(cloudinary_meta["public_id"])
+                print(f"☁️ Cloudinary upload OK: {image_url}")
+            except Exception as cloud_err:
+                print(f"⚠️ Cloudinary upload failed for image {index}, falling back to local: {cloud_err}")
+                cloudinary_meta = None
+                # Fall back to local save
+                file_ext = os.path.splitext(filename)[1].lower() or ".jpg"
+                saved_filename = f"incident_{event_id[:8]}_{index}{file_ext}"
+                saved_path = os.path.join(UPLOADS_DIR, saved_filename)
+                try:
+                    with open(saved_path, "wb") as f_out:
+                        f_out.write(image_bytes)
+                    image_url = f"/uploads/{saved_filename}"
+                    print(f"💾 Fallback local save: {image_url}")
+                except Exception as save_err:
+                    print("⚠️ Failed to save image locally:", save_err)
+                    image_url = ""
+        else:
+            # --------------------------------------------------------
+            # LOCAL DISK SAVE (no Cloudinary credentials)
+            # --------------------------------------------------------
+            file_ext = os.path.splitext(filename)[1].lower() or ".jpg"
+            saved_filename = f"incident_{event_id[:8]}_{index}{file_ext}"
+            saved_path = os.path.join(UPLOADS_DIR, saved_filename)
+            try:
+                with open(saved_path, "wb") as f_out:
+                    f_out.write(image_bytes)
+                image_url = f"/uploads/{saved_filename}"
+                print(f"💾 Saved accepted image: {saved_path} -> {image_url}")
+            except Exception as save_err:
+                print("⚠️ Failed to save image to uploads:", save_err)
+                image_url = ""
 
         valid_images.append({
             "image_index": index,
@@ -622,6 +665,7 @@ async def analyze_disaster(
             "content_type": content_type,
             "image_bytes": image_bytes,
             "image_url": image_url,
+            "cloudinary_metadata": cloudinary_meta,
         })
 
 
@@ -686,8 +730,7 @@ async def analyze_disaster(
         )
 
 
-    # Ensure incident relevance is enabled for user-reported incidents
-    analysis["disaster_relevant"] = True
+    # Preserving analyzer relevance result without hardcoding to True
 
 
     # ========================================================
@@ -795,8 +838,47 @@ async def analyze_disaster(
 
     )
 
-    primary_image_url = prepared_images[0].get("image_url", "") if prepared_images else ""
+    primary_image_url = valid_images[0].get("image_url", "") if valid_images else ""
 
+    # Combine accepted and rejected image details for complete per-image records
+    full_image_validation = []
+    for item in validation_summary.get("accepted_details", []):
+        full_image_validation.append({
+            "image_index": item.get("image_index"),
+            "filename": item.get("filename", ""),
+            "status": "VALID",
+            "valid": True,
+            "relevant": True,
+            "accepted": True,
+            "reason": item.get("reason", "Accepted by disaster validation pipeline."),
+            "predicted_label": item.get("predicted_label", ""),
+            "predicted_disaster_type": item.get("predicted_disaster_type", ""),
+            "confidence": item.get("confidence", 0.0),
+            "image_url": item.get("image_url", ""),
+            "groq_confidence": item.get("groq_confidence", 0.0),
+            "groq_location_match": item.get("groq_location_match", False),
+            "groq_reason": item.get("groq_reason", ""),
+        })
+
+    for item in (validation_summary.get("rejected_details", []) + upload_validation):
+        full_image_validation.append({
+            "image_index": item.get("image_index"),
+            "filename": item.get("filename", ""),
+            "status": "INVALID",
+            "valid": False,
+            "relevant": False,
+            "accepted": False,
+            "reason": item.get("reason", "Rejected by disaster validation pipeline."),
+            "predicted_label": item.get("predicted_label", "none"),
+            "predicted_disaster_type": item.get("predicted_disaster_type", "none"),
+            "confidence": item.get("confidence", 0.0),
+            "image_url": "",
+            "groq_confidence": item.get("groq_confidence", 0.0),
+            "groq_location_match": item.get("groq_location_match", False),
+            "groq_reason": item.get("groq_reason", ""),
+        })
+
+    full_image_validation.sort(key=lambda x: x.get("image_index", 0))
 
     # ========================================================
     # EVENT
@@ -832,7 +914,7 @@ async def analyze_disaster(
             primary_image_url,
 
         "validationStatus":
-            "VALIDATED",
+            "VALIDATED" if len(valid_images) > 0 else "VALIDATION_FAILED",
 
         "validatedAt":
             datetime.now(timezone.utc).isoformat(),
@@ -920,20 +1002,28 @@ async def analyze_disaster(
             len(valid_images),
 
         "rejected_images":
-            len(rejected_images),
+            len(rejected_images) + len(upload_validation),
 
         "image_validation":
-
-            analysis.get(
-
-                "image_validation",
-
-                []
-
-            ),
+            full_image_validation,
 
         "rejected_image_details":
-            rejected_images,
+            rejected_images + upload_validation,
+
+        # ---------------------------------------------------
+        # CLOUDINARY IMAGE METADATA
+        # (public_id, secure_url, format, width, height, file_size per accepted image)
+        # ---------------------------------------------------
+
+        "cloudinary_images": [
+            {
+                **img["cloudinary_metadata"],
+                "image_index": img["image_index"],
+                "filename": img["filename"],
+            }
+            for img in valid_images
+            if img.get("cloudinary_metadata")
+        ],
 
         # ---------------------------------------------------
         # LOCATION
@@ -994,6 +1084,33 @@ async def analyze_disaster(
 
 
     try:
+        # Record initial incident creation event
+        WorkflowService.record_event(
+            incident_id=event_id,
+            sender_agent_id="System",
+            receiver_agent_id="CoordinatorAgent",
+            event_type="incident_created",
+            message=f"Disaster incident '{disaster_type}' reported and validated at {location}. Severity: {severity}/10.",
+            status="success",
+            action="create_incident",
+            result="validated",
+            metadata={
+                "disaster_type": disaster_type,
+                "location": location,
+                "severity": severity,
+                "victims": victim_estimate,
+            }
+        )
+
+        WorkflowService.record_event(
+            incident_id=event_id,
+            sender_agent_id="CoordinatorAgent",
+            receiver_agent_id="EmergencyAgent",
+            event_type="agent_assigned",
+            message=f"Coordinator assigned EmergencyAgent to perform hazard assessment and emergency response for {disaster_type}.",
+            status="success",
+            action="assign_agent",
+        )
 
         initial_state = {
 
@@ -1021,6 +1138,16 @@ async def analyze_disaster(
             "Error:",
             e
         )
+
+        # --------------------------------------------------------
+        # CLOUDINARY ROLLBACK
+        # Clean up any uploaded assets so they don't become orphaned
+        # --------------------------------------------------------
+        for pub_id in _cloudinary_uploaded_public_ids:
+            try:
+                delete_image_from_cloudinary(pub_id)
+            except Exception as del_err:
+                print(f"⚠️ Cloudinary rollback delete failed for {pub_id}: {del_err}")
 
         raise HTTPException(
 

@@ -132,3 +132,22 @@ export const getVehicles = async () => {
   const res = await API.get("/api/delegation-vehicles");
   return res.data.vehicles || [];
 };
+
+// ============================================================
+// WORKFLOW & AGENT COMMUNICATION
+// ============================================================
+
+export const getIncidentWorkflow = async (incidentId, params = {}) => {
+  const res = await API.get(`/api/incidents/${incidentId}/workflow`, { params });
+  return res.data;
+};
+
+export const getIncidentWorkflowSummary = async (incidentId) => {
+  const res = await API.get(`/api/incidents/${incidentId}/workflow/summary`);
+  return res.data;
+};
+
+export const getIncidentWorkflowGraph = async (incidentId) => {
+  const res = await API.get(`/api/incidents/${incidentId}/workflow/graph`);
+  return res.data;
+};
