@@ -124,8 +124,8 @@ export default function AgentWorkflowPanel({ incident }) {
   useEffect(() => {
     if (!incidentId) return;
 
-    const wsUrl = (import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000")
-      .replace(/^http/, "ws") + "/ws/disaster";
+    const rawBackendUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000";
+    const wsUrl = rawBackendUrl.replace(/^http/, "ws") + "/ws/disaster";
 
     let socket = null;
     try {

@@ -136,7 +136,7 @@ export default function IncidentQueue({ onOpenIncident }) {
                       ? incident.thumbnailUrl
                       : incident.imageUrl.startsWith("http")
                         ? incident.imageUrl
-                        : `http://127.0.0.1:8000${incident.imageUrl}`
+                        : `${import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000"}${incident.imageUrl}`
                   }
                   alt=""
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

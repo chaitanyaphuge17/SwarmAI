@@ -67,7 +67,7 @@ function IncidentDetailsTab({ incident }) {
   const hazards = incident.hazards || [];
   const infrastructure = incident.infrastructure || [];
 
-  const backendBase = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000";
+  const backendBase = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000";
   const imageUrl = incident.imageUrl
     ? (incident.imageUrl.startsWith("http") ? incident.imageUrl : `${backendBase}${incident.imageUrl}`)
     : null;

@@ -212,6 +212,99 @@ npm run build
 
 ---
 
+---
+
+## 🌐 Production Deployment Guide
+
+This section describes how to deploy SwarmAI in production with the frontend hosted on **Cloudflare Pages** and the FastAPI backend hosted on **Railway**.
+
+### Architecture Overview
+```
+[ Frontend: React + Vite ] (Cloudflare Pages)
+            │
+            ▼ HTTPS / WSS
+[ Backend: FastAPI Server ] (Railway)
+     ├── [ MongoDB Atlas ] (Persistent Database)
+     ├── [ Cloudinary ] (Cloud Image Storage)
+     ├── [ Groq Cloud ] (LLM & VLM Vision)
+     └── [ Twilio ] (SMS Alerts)
+```
+
+---
+
+### 1. Backend Deployment — Railway
+
+1. **Create a Railway Project**:
+   - Go to [Railway.app](https://railway.app) and create a new project.
+   - Connect your GitHub repository.
+
+2. **Configure Service Settings**:
+   - **Root Directory**: `ai-services` (or repository root with `Procfile`).
+   - **Build Command**: Railway automatically detects Python using `requirements.txt` and `runtime.txt`.
+   - **Start Command**:
+     ```bash
+     uvicorn main:app --host 0.0.0.0 --port $PORT
+     ```
+     *(Handled automatically via `Procfile`)*.
+
+3. **Configure Environment Variables in Railway**:
+   Set the following variables in your Railway service dashboard:
+
+   | Variable | Example Value / Description |
+   | :--- | :--- |
+   | `PORT` | Auto-set by Railway (default `8000`) |
+   | `ALLOWED_ORIGINS` | `https://your-app.pages.dev,http://localhost:5173` |
+   | `MONGODB_URI` | `mongodb+srv://user:pass@cluster.mongodb.net/swarmai` |
+   | `MONGODB_DATABASE` | `swarmai` |
+   | `GROQ_API_KEY` | `gsk_...` |
+   | `CLOUDINARY_CLOUD_NAME` | `your_cloud_name` |
+   | `CLOUDINARY_API_KEY` | `your_api_key` |
+   | `CLOUDINARY_API_SECRET` | `your_api_secret` |
+   | `TWILIO_ACCOUNT_SID` | `AC_...` |
+   | `TWILIO_AUTH_TOKEN` | `your_auth_token` |
+   | `TWILIO_PHONE_NUMBER` | `+1234567890` |
+   | `ADMIN_USERNAME` | `admin` |
+   | `ADMIN_PASSWORD` | `your_secure_admin_password` |
+
+---
+
+### 2. Frontend Deployment — Cloudflare Pages
+
+1. **Connect Cloudflare Pages**:
+   - Open [Cloudflare Dashboard](https://dash.cloudflare.com/) -> **Workers & Pages** -> **Create application** -> **Pages**.
+   - Select **Connect to Git** and pick your repository.
+
+2. **Configure Build Settings**:
+   - **Framework preset**: `Vite`
+   - **Root directory**: `frontend`
+   - **Build command**: `npm run build`
+   - **Build output directory**: `dist`
+
+3. **Configure Environment Variables in Cloudflare Pages**:
+   - Add environment variable:
+     - `VITE_API_URL` = `https://your-backend.up.railway.app`
+     - `VITE_MAPTILER_KEY` = `your_maptiler_key`
+
+4. **Single Page Application (SPA) Routing**:
+   - Single-page client routing is configured automatically via `public/_redirects` (`/* /index.html 200`).
+
+---
+
+### 3. External Services Setup
+
+#### 🍃 MongoDB Atlas Setup
+1. Create a cluster on [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
+2. Create a Database User with read/write access.
+3. Network Access: Whitelist IP `0.0.0.0/0` (or Railway IP range) to allow Railway backend connections.
+4. Copy connection string into `MONGODB_URI`.
+
+#### ☁️ Cloudinary Setup (Permanent Evidence Storage)
+1. Sign up on [Cloudinary](https://cloudinary.com/).
+2. Copy `Cloud Name`, `API Key`, and `API Secret` from Dashboard into Railway environment variables.
+3. Uploaded evidence images are stored permanently in the `swarmai_disasters` Cloudinary folder.
+
+---
+
 ## 🛡️ License
 
 Distributed under the MIT License. See `LICENSE` for more information.
