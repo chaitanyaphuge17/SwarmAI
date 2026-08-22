@@ -1,359 +1,221 @@
-# 🚨 SwarmAI - Multi-Agent Disaster Response System
+# 🚨 SwarmAI — Multi-Agent Emergency Disaster Command System
 
-# Overview
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-SwarmAI%20Dashboard-blue?style=for-the-badge&logo=cloudflare)](https://swarmai-disaster-system.pages.dev/)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB?style=for-the-badge&logo=react)](https://reactjs.org/)
+[![LangGraph](https://img.shields.io/badge/AI%20Orchestrator-LangGraph-FF6F61?style=for-the-badge)](https://langchain-ai.github.io/langgraph/)
 
-SwarmAI is an AI-powered disaster response platform that leverages multiple intelligent agents to coordinate emergency operations during disaster situations.
-
-The system simulates real-world emergency response workflows by combining:
-
-* Multi-Agent AI Architecture
-* LangGraph Orchestration
-* LLM-Based Reasoning
-* Real-Time Communication
-* Interactive Disaster Mapping
-* Resource Allocation & Route Optimization
-
-SwarmAI demonstrates how autonomous agents can collaborate to improve decision-making during floods, earthquakes, fires, chemical leaks, and other emergency scenarios.
-
-
-# 🌐 Live Demo
-
-Website:
-https://swarmai-disaster-system.pages.dev/
-
-⚠️ Important Notice
-
-This project uses a backend hosted on Render's free tier.
-The first request after inactivity may take **30–60 seconds** to load because the backend automatically goes to sleep when not in use.
-If the dashboard does not respond immediately:
-1. Wait for 30–60 seconds.
-2. Click **Start Simulation** again.
-3. The system will function normally after the backend wakes up.
-This is a limitation of the free hosting plan and not an issue with the application itself.
-
-# Problem Statement
-
-During disasters, emergency response teams face several challenges:
-
-* Delayed decision making
-* Lack of coordination between departments
-* Inefficient resource allocation
-* Traffic congestion affecting rescue operations
-* Limited visibility into real-time disaster conditions
-
-SwarmAI addresses these challenges through a coordinated AI-driven disaster management platform.
-
-
-
-# Key Features
-
-1. 🤖 Multi-Agent Coordination
-
-The platform consists of four specialized AI agents:
-
-2. 🚨 Emergency Agent
-
-Responsible for:
-
-* Disaster severity analysis
-* Emergency assessment
-* Rescue team activation
-* Critical response recommendations
-
-
-
-3. 🏥 Medical Agent
-
-Responsible for:
-
-* Victim analysis
-* Medical prioritization
-* Emergency medical deployment
-* Triage recommendations
-
-
-
-4. 🚦 Traffic Agent
-
-Responsible for:
-
-* Traffic condition monitoring
-* Route optimization
-* Emergency vehicle routing
-* Alternate route generation
-
-
-
-5. 🚑 Resource Agent
-
-Responsible for:
-
-* Resource allocation
-* Ambulance deployment
-* Rescue team distribution
-* Operational planning
-
-
-
-6. AI Reasoning
-
-Each agent uses LLM-powered reasoning to explain:
-
-* Why a decision was made
-* What information influenced the decision
-* Recommended actions
-
-This provides transparency and explainability during emergency response.
-
-
-
-7. Real-Time Dashboard
-
-The dashboard provides:
-
-8. Live Statistics
-
-* Severity Level
-* Victim Count
-* Traffic Conditions
-* Active Agents
-
-9. Agent Status Monitoring
-
-* Agent State
-* Confidence Score
-* Execution Time
-* Final Decision
-
-10. AI Reasoning Panel
-
-Detailed explanation of agent decisions.
-
-11. Communication Panel
-
-Inter-agent communication and coordination updates.
-
-12. Activity Logs
-
-Real-time simulation activity tracking.
-
-
-
-13. Interactive Disaster Map
-
-The platform includes a live operational map built using MapLibre.
-
-Features:
-
-* Disaster Heat Zones
-* Hospital Locations
-* Disaster Zones
-* Route Visualization
-* Animated Ambulance Movement
-* Emergency Response Tracking
-
-
-
-## System Architecture
-
-# Frontend
-
-* React.js
-* Vite
-* Tailwind CSS
-* MapLibre GL
-* MapTiler
+SwarmAI is a state-of-the-art autonomous multi-agent disaster response platform designed to automate, coordinate, and optimize real-time emergency command operations during critical disaster situations (floods, fires, earthquakes, chemical leaks, and tactical emergencies).
 
 ---
 
-# Backend
+## 🏆 FAR AWAY 2026 — ROUND 2 CHALLENGE STATEMENT
 
-* FastAPI
-* Python
+**Team:** `sohamshejwal` (`U9L97JW9`)  
+**Challenge #689:** `Delegation: Conflict Check`
 
----
-
-# AI Layer
-
-* LangGraph
-* Groq LLM
-* Multi-Agent Architecture
+> **Challenge Directive:**  
+> Extend the MVP with a capability related to transfer of responsibility between users or roles. Specifically, detect conflicts early and present them before the user commits to an action. The change should fit naturally into the existing MVP and remain independent of any specific hackathon theme.
 
 ---
 
-# Communication
+### 💡 What We Did to Resolve It (Technical Solution)
 
-* WebSockets
-* Real-Time Event Streaming
+To address Challenge #689, we engineered a dedicated **Delegation & Conflict Check Engine** integrated seamlessly into the **Admin Command Center** (`DelegationPanel.jsx` & `conflict_checker.py`). 
 
----
+#### 1. Pre-Commit Conflict Detection Engine (`services/conflict_checker.py`)
+Before an administrator or dispatch officer commits a task delegation, team assignment, vehicle reservation, or shift window, the system intercepts the request and evaluates it against all active operational assignments stored in MongoDB.
 
-# Workflow
+#### 2. Multi-Dimensional Conflict Rules
+Our engine evaluates 4 distinct operational conflict vectors:
+- 📅 **Schedule Overlap Conflict**: Calculates exact time window overlaps ($\Delta t$ in hours) across active team schedules. Prevents double-booking response units across simultaneous disaster zones.
+- 🚑 **Resource Allocation Conflict**: Detects overlapping vehicle reservations (e.g. Fire Truck 01 or Ambulance 02 reserved for overlapping time frames across different incidents).
+- 🔁 **Duplicate Assignment Protection**: Identifies identical tasks assigned to the same team on the same incident to eliminate redundant dispatch.
+- ⚡ **Capacity & Workload Warning**: Tracks active assignment counts per team against operational thresholds (e.g. max 3 concurrent deployments) to prevent responder burnout and performance degradation.
 
-1. User starts a disaster simulation.
-2. Disaster event is sent to FastAPI backend.
-3. LangGraph orchestrates agent execution.
-4. Agents analyze the event.
-5. Agents generate decisions.
-6. Groq LLM generates reasoning.
-7. Results are streamed to the frontend using WebSockets.
-8. Dashboard updates in real time.
-9. Route optimization and disaster visualization are displayed on the map.
+#### 3. Pre-Commit Interactive Modal & Intelligent Suggestions (`ConflictModal.jsx`)
+- **Real-Time Badge Feedback**: Displays `No Conflict`, `Capacity Warning`, or `Schedule Conflict` badges dynamically as assignment parameters change.
+- **Overlapping Incident Details**: Displays exact conflicting incident IDs, time ranges, and duration of overlap.
+- **Smart Recommendations**: Suggests alternative teams and vehicles of matching roles/types currently free during the requested timeframe.
+- **Flexible Control Flow**: Presents clear options to either **Cancel & Reassign** or **Proceed & Override** (for critical emergency bypass).
 
----
-
-# Supported Disaster Types
-
-* Flood
-* Earthquake
-* Fire
-* Chemical Leak
-* Terror Attack
+#### 4. Audit Log & Real-Time Broadcast
+Once confirmed, delegations are persisted in MongoDB (`assignments_collection`) and broadcasted via WebSockets (`/ws/disaster`) to update all active command center dashboards instantly.
 
 ---
 
-# Project Structure
+## 🌐 Live Demo & Important Notice
 
+- **Live Application URL**: [https://swarmai-disaster-system.pages.dev/](https://swarmai-disaster-system.pages.dev/)
 
-SwarmAI/
-│
+> ⚠️ **Notice regarding Render Free-Tier Backend**:  
+> The backend server is hosted on Render's free tier. If inactive, the server automatically enters sleep mode. The initial request might take **30–60 seconds** to wake up. Once awake, the system operates seamlessly in real time.
+
+---
+
+## 🚀 Core Features
+
+### 🤖 1. Autonomous Multi-Agent Swarm (LangGraph Driven)
+- **Coordinator Agent**: Synthesizes field data, manages workflow state, and delegates tasks across specialized agents.
+- **Emergency Agent**: Analyzes disaster severity (1–10 scale), assesses hazard propagation, and issues evacuation orders.
+- **Medical Agent**: Prioritizes casualty triage, evaluates medical access bottlenecks, and deploys emergency medical units.
+- **Traffic Agent**: Monitors route congestion, identifies road blockages, and calculates optimal emergency vehicle transit routes via OpenRouteService.
+- **Resource Agent**: Tracks unit availability, dispatches fire trucks/ambulances, and balances regional supply allocation.
+
+### 🖼️ 2. Image Verification & Vision Pipeline
+- **Groq Vision LLM Integration**: Analyzes user-submitted disaster imagery to verify authenticity, identify hazards, and categorize disaster types.
+- **Geo-Plausibility Check**: Verifies image content against reported incident metadata to filter false or spoofed reports.
+- **Per-Image Verification Log**: Provides itemized validation reports directly in the Admin Command Center.
+
+### 📲 3. Twilio SMS Notification Integration
+- Automated SMS alerts dispatched directly to emergency response commanders and field team leads upon incident confirmation or delegation updates.
+
+### 🗺️ 4. Interactive Map & Live Topology
+- Built with **MapLibre GL** and **MapTiler**.
+- Features disaster heat zones, hospital overlays, animated ambulance transit vectors, and optimized route geometry.
+- **Directed Inter-Agent Topology Graph**: Displays visual nodes and directed communication links showing message exchange frequencies between swarm agents.
+
+### 📑 5. Admin Command Center & Workflow History
+- Tabbed interface: **Agent Workflow**, **Incident Details**, **Notifications**, and **Delegation Center**.
+- Real-time WebSocket streaming (`/ws/disaster`) for instantaneous workflow events and logs.
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | React 18, Vite, Tailwind CSS, Framer Motion, React Icons, MapLibre GL |
+| **Backend** | Python 3.11, FastAPI, WebSockets, Uvicorn, Motor / PyMongo |
+| **AI / Swarm** | LangGraph, Groq LLM / Vision API, OpenRouteService API |
+| **Database** | MongoDB Atlas |
+| **External Services** | Twilio SMS API, Cloudinary Image Storage |
+
+---
+
+## 📂 Project Structure
+
+```
+swarm-ai/
 ├── frontend/
 │   ├── src/
-│   ├── components/
-│   ├── hooks/
-│   ├── services/
-│   └── pages/
+│   │   ├── components/
+│   │   │   ├── AdminCommandCenter.jsx   # Top-level Admin Command View
+│   │   │   ├── AgentWorkflowPanel.jsx   # Graph topology, Story view & timeline log
+│   │   │   ├── DelegationPanel.jsx      # Round 2 Delegation & Conflict form
+│   │   │   ├── ConflictModal.jsx        # Conflict detection warning modal
+│   │   │   ├── ConflictBadge.jsx        # Dynamic conflict severity indicator
+│   │   │   ├── MapDashboard.jsx         # MapLibre GL interactive operational map
+│   │   │   └── ResponseView.jsx         # Live incident response simulation view
+│   │   └── services/
+│   │       └── adminService.js          # API clients for workflow & delegation
+│   └── package.json
 │
 ├── ai-services/
 │   ├── agents/
-│   │   ├── emergency_agent.py
-│   │   ├── medical_agent.py
-│   │   ├── traffic_agent.py
-│   │   └── resource_agent.py
-│   │
-│   ├── orchestrator/
-│   │   └── langgraph_orchestrator.py
-│   │
-│   ├── websocket/
-│   ├── services/
+│   │   ├── emergency_agent.py           # Emergency analysis & severity rating
+│   │   ├── medical_agent.py             # Casualty triage & medical routing
+│   │   ├── traffic_agent.py             # Route calculation & obstruction check
+│   │   └── resource_agent.py            # Unit deployment & supply allocation
 │   ├── api/
-│   └── main.py
-│
+│   │   ├── delegation_routes.py         # Conflict check & delegation endpoints
+│   │   └── workflow_routes.py           # Incident summary & graph topology endpoints
+│   ├── orchestrator/
+│   │   └── langgraph_orchestrator.py    # Multi-agent LangGraph state graph
+│   ├── services/
+│   │   ├── conflict_checker.py          # Round 2 Conflict Detection Engine
+│   │   ├── image_validator.py           # Groq VLM image verification
+│   │   └── sms_service.py               # Twilio SMS notification dispatch
+│   ├── database/
+│   │   └── mongodb.py                   # Async MongoDB client & collection handlers
+│   └── main.py                          # FastAPI server & WebSocket manager
 └── README.md
-
+```
 
 ---
 
-# Installation
+## ⚡ Quick Start Guide
 
-## Backend
+### Prerequisites
+- Python 3.10+
+- Node.js 18+
+- MongoDB instance (local or Atlas)
+
+### 1. Backend Setup
 
 ```bash
 cd ai-services
 
+# Create and activate virtual environment
 python -m venv .venv
-
+# On Windows:
+.venv\Scripts\activate
+# On Linux/macOS:
 source .venv/bin/activate
 
+# Install dependencies
 pip install -r requirements.txt
 
-uvicorn main:app --reload
+# Create .env file
+cat <<EOT > .env
+GROQ_API_KEY=your_groq_api_key
+MONGODB_URI=your_mongodb_uri
+TWILIO_ACCOUNT_SID=your_twilio_sid
+TWILIO_AUTH_TOKEN=your_twilio_token
+TWILIO_PHONE_NUMBER=your_twilio_phone
+ORS_API_KEY=your_openrouteservice_key
+EOT
+
+# Start FastAPI server
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
-
-Backend runs on:
-
-
-http://127.0.0.1:8000
-
+Backend API will run at `http://127.0.0.1:8000`
 
 ---
 
-## Frontend
+### 2. Frontend Setup
 
 ```bash
 cd frontend
 
+# Install dependencies
 npm install
 
+# Create .env file
+cat <<EOT > .env
+VITE_BACKEND_URL=http://127.0.0.1:8000
+VITE_MAPTILER_KEY=your_maptiler_api_key
+EOT
+
+# Start Vite dev server
 npm run dev
 ```
-
-Frontend runs on:
-
-
-http://localhost:5173
-
+Frontend application will run at `http://localhost:5173`
 
 ---
 
-# Environment Variables
+## 🧪 Verification & Testing
 
-## Backend
+### Running Round 2 End-to-End Conflict Verification
+We provide an automated verification suite testing conflict detection across schedule overlaps, resource reservation collisions, duplicate tasks, and capacity thresholds:
 
-Create `.env`
+```bash
+cd ai-services
+python test_round2_e2e.py
+```
 
-```env
-GROQ_API_KEY=your_groq_api_key
-ORS_API_KEY=your_openrouteservice_key
+### Running Frontend Build Check
+```bash
+cd frontend
+npm run build
 ```
 
 ---
 
-## Frontend
+## 🛡️ License
 
-Create `.env`
-
-```env
-VITE_API_BASE_URL=http://127.0.0.1:8000
-VITE_WS_URL=ws://127.0.0.1:8000/ws/disaster
-VITE_MAPTILER_KEY=your_maptiler_key
-```
+Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-# Future Enhancements
-
-* Real Disaster Data Integration
-* Government Control Room Integration
-* Predictive Disaster Analytics
-* Drone-Based Emergency Coordination
-* Shelter Recommendation System
-* Multi-City Simulation Support
-* Resource Demand Forecasting
-
----
-
-# Impact
-
-SwarmAI demonstrates how AI agents can collaborate to:
-
-* Improve disaster response times
-* Optimize emergency routes
-* Allocate resources efficiently
-* Enhance situational awareness
-* Provide explainable AI decision-making
-
-The platform serves as a prototype for next-generation AI-powered emergency command systems.
-
----
-
-# Team
-
-SwarmAI Development Team
-
-Built using:
-
-* FastAPI
-* React
-* LangGraph
-* Groq
-* WebSockets
-* MapLibre
-* MapTiler
-* Tailwind CSS
-
----
-
-## License
-
-MIT License
+**Built by Team `sohamshejwal` (`U9L97JW9`) for Far Away 2026 Challenge #689.**
