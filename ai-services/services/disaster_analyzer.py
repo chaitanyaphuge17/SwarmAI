@@ -1,4 +1,4 @@
-﻿import os
+import os
 import io
 import json
 import re
@@ -811,10 +811,7 @@ def build_safe_fallback(
             validation.get("predicted_label", "")
         ).lower()
 
-        is_forest_fire = (
-            "wildfire" in predicted_label
-            or "forest fire" in predicted_label
-        )
+        is_forest_fire = "fire" in predicted_label
 
         relevant = not (
             coastal_location
@@ -829,7 +826,7 @@ def build_safe_fallback(
             ),
             "relevant": relevant,
             "reason": (
-                "Forest-fire image does not match the coastal incident location."
+                "Fire image does not match the coastal high-tide incident."
                 if not relevant
                 else validation.get(
                     "reason",
@@ -944,13 +941,10 @@ def enforce_image_consistency(
             validation.get("predicted_label", "")
         ).lower()
 
-        if (
-            "wildfire" in predicted_label
-            or "forest fire" in predicted_label
-        ):
+        if "fire" in predicted_label:
             item["relevant"] = False
             item["reason"] = (
-                "Forest-fire image does not match the coastal incident location."
+                "Fire image does not match the coastal high-tide incident."
             )
             rejected_indices.add(image_index)
 

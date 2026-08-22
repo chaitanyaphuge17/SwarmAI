@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   FaExclamationTriangle,
@@ -12,13 +11,10 @@ import {
   FaCar,
   FaHospital,
   FaCheckCircle,
-  FaUserShield,
 } from "react-icons/fa";
 import MapDashboard from "./MapDashboard";
-import AdminCommandCenter from "./AdminCommandCenter";
 
 export default function ResponseView({ data, onReset, userLocation = null }) {
-  const [showAdmin, setShowAdmin] = useState(false);
 
   if (!data || !data.event) {
     return (
@@ -427,42 +423,7 @@ export default function ResponseView({ data, onReset, userLocation = null }) {
           <FaRedo className="text-xs text-slate-400" />
           <span>Report Another Incident</span>
         </button>
-
-        <button
-          type="button"
-          onClick={() => setShowAdmin((v) => !v)}
-          className="px-8 py-3.5 rounded-xl bg-red-700 hover:bg-red-600 text-white font-bold text-sm tracking-wide transition-all shadow-lg shadow-red-950/40 flex items-center gap-2.5 border border-red-600 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-400"
-        >
-          <FaUserShield className="text-sm" />
-          <span>{showAdmin ? "Close Command Center" : "Open Admin Command Center"}</span>
-        </button>
       </motion.div>
-
-      {/* 6. ADMIN COMMAND CENTER */}
-      {showAdmin && (
-        <AdminCommandCenter
-          incident={{
-            id:              data.event?.event_id,
-            short_id:        (data.event?.event_id || "").slice(0, 8).toUpperCase(),
-            type:            data.event?.disaster_type || data.event?.disaster || "Incident",
-            location:        data.location?.name || data.event?.location || "Unknown",
-            severity:        data.event?.severity || 0,
-            severityLabel:   data.event?.severity >= 8 ? "critical" : data.event?.severity >= 5 ? "high" : "medium",
-            status:          data.event?.status || "validated",
-            victims:         data.event?.victims || data.event?.victim_estimate || 0,
-            summary:         data.event?.summary || "",
-            trafficImpact:   data.event?.traffic_impact || "low",
-            medicalImpact:   data.event?.medical_access_impact || "low",
-            evacuationRequired: Boolean(data.event?.evacuation_required),
-            observations:    data.event?.observations || [],
-            hazards:         data.event?.hazards || [],
-            infrastructure:  data.event?.infrastructure_damage || [],
-            latitude:        data.location?.latitude ?? data.event?.latitude,
-            longitude:       data.location?.longitude ?? data.event?.longitude,
-          }}
-          onBack={() => setShowAdmin(false)}
-        />
-      )}
     </div>
   );
 }

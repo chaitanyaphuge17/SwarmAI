@@ -381,6 +381,16 @@ async def analyze_disaster(
 
         )
 
+    if len(images) > 5:
+
+        raise HTTPException(
+
+            status_code=400,
+
+            detail="Maximum 5 images per request are allowed."
+
+        )
+
     print(
         f"📷 Total uploaded images: "
         f"{len(images)}"
@@ -388,12 +398,12 @@ async def analyze_disaster(
 
 
     # ========================================================
-    # READ AND VALIDATE IMAGES (Standard file & decode integrity)
+    # STEP 1: READ IMAGES INTO MEMORY & FILE-LEVEL CHECKS
+    # (No disk save yet — validation happens first)
     # ========================================================
 
-    prepared_images = []
-
-    upload_validation = []
+    prepared_images = []   # images that passed file-level checks (have bytes)
+    upload_validation = [] # per-image file-level rejection records
 
     for index, image in enumerate(
         images,
@@ -402,17 +412,13 @@ async def analyze_disaster(
 
         print("\n")
         print(
-            f"📷 PROCESSING IMAGE {index}"
+            f"📷 READING IMAGE {index}"
         )
 
         filename = (
-
             image.filename
-
             or
-
             f"image_{index}"
-
         )
 
         content_type = image.content_type
@@ -425,76 +431,43 @@ async def analyze_disaster(
         if not content_type:
 
             upload_validation.append({
-
-                "image_index":
-                    index,
-
-                "filename":
-                    filename,
-
-                "accepted":
-                    False,
-
-                "reason":
-                    "Unable to determine image type."
-
+                "image_index": index,
+                "filename": filename,
+                "accepted": False,
+                "reason": "Unable to determine image type."
             })
 
+            print(f"   ❌ Rejected — unknown content type")
             continue
 
 
         if content_type not in ALLOWED_IMAGE_TYPES:
 
             upload_validation.append({
-
-                "image_index":
-                    index,
-
-                "filename":
-                    filename,
-
-                "accepted":
-                    False,
-
-                "reason":
-                    "Unsupported image format. Please upload JPG, PNG, or WEBP."
-
+                "image_index": index,
+                "filename": filename,
+                "accepted": False,
+                "reason": "Unsupported image format. Please upload JPG, PNG, or WEBP."
             })
 
+            print(f"   ❌ Rejected — unsupported type: {content_type}")
             continue
 
 
         # ----------------------------------------------------
-        # READ IMAGE
+        # READ IMAGE BYTES
         # ----------------------------------------------------
 
         try:
-
             image_bytes = await image.read()
-
         except Exception as e:
-
-            print(
-                "❌ IMAGE READ ERROR:",
-                e
-            )
-
+            print("❌ IMAGE READ ERROR:", e)
             upload_validation.append({
-
-                "image_index":
-                    index,
-
-                "filename":
-                    filename,
-
-                "accepted":
-                    False,
-
-                "reason":
-                    "Unable to read uploaded image."
-
+                "image_index": index,
+                "filename": filename,
+                "accepted": False,
+                "reason": "Unable to read uploaded image."
             })
-
             continue
 
 
@@ -503,23 +476,13 @@ async def analyze_disaster(
         # ----------------------------------------------------
 
         if len(image_bytes) == 0:
-
             upload_validation.append({
-
-                "image_index":
-                    index,
-
-                "filename":
-                    filename,
-
-                "accepted":
-                    False,
-
-                "reason":
-                    "Uploaded image is empty."
-
+                "image_index": index,
+                "filename": filename,
+                "accepted": False,
+                "reason": "Uploaded image is empty."
             })
-
+            print(f"   ❌ Rejected — empty file")
             continue
 
 
@@ -528,28 +491,18 @@ async def analyze_disaster(
         # ----------------------------------------------------
 
         if len(image_bytes) > MAX_IMAGE_SIZE:
-
             upload_validation.append({
-
-                "image_index":
-                    index,
-
-                "filename":
-                    filename,
-
-                "accepted":
-                    False,
-
-                "reason":
-                    "Image exceeds the 10 MB limit."
-
+                "image_index": index,
+                "filename": filename,
+                "accepted": False,
+                "reason": "Image exceeds the 10 MB limit."
             })
-
+            print(f"   ❌ Rejected — exceeds 10MB ({len(image_bytes)} bytes)")
             continue
 
 
         # ----------------------------------------------------
-        # DECODE INTEGRITY CHECK (PIL)
+        # BYTE-LEVEL PILLOW INTEGRITY CHECK
         # ----------------------------------------------------
 
         try:
@@ -567,8 +520,88 @@ async def analyze_disaster(
 
 
         # ----------------------------------------------------
-        # SAVE EVIDENCE IMAGE TO DISK
+        # PASSES FILE-LEVEL CHECKS — QUEUE FOR VISION VALIDATION
+        # (NOT saved to disk yet)
         # ----------------------------------------------------
+
+        print(f"   ✅ File OK — {filename} ({len(image_bytes)} bytes, {content_type})")
+
+        prepared_images.append({
+            "image_index": index,
+            "filename": filename,
+            "content_type": content_type,
+            "image_bytes": image_bytes,
+        })
+
+
+    # ========================================================
+    # STEP 2: EARLY EXIT IF NO IMAGES PASSED FILE CHECKS
+    # ========================================================
+
+    if not prepared_images:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "No images passed file validation. Please upload a valid JPG, PNG, or WEBP under 10 MB.",
+                "rejected_details": upload_validation
+            }
+        )
+
+
+    # ========================================================
+    # STEP 3: LOCAL VISION MODEL + GEOGRAPHIC VALIDATION
+    # Run IMMEDIATELY — before saving to disk or calling Groq.
+    # ========================================================
+
+    print("\n")
+    print("=" * 70)
+    print("🔍 RUNNING LOCAL VISION & GEOGRAPHIC VALIDATION")
+    print("=" * 70)
+
+    validation_summary = await validate_disaster_images(
+        images=prepared_images,
+        location=location,
+        user_description=description
+    )
+
+    # --------------------------------------------------------
+    # If ALL images rejected — return 422 immediately.
+    # Do NOT save to disk. Do NOT call Groq.
+    # --------------------------------------------------------
+
+    if validation_summary["accepted_images"] == 0:
+        print("❌ ALL IMAGES REJECTED — returning HTTP 422 immediately")
+        print("=" * 70)
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "None of the uploaded images passed disaster validation.",
+                "total_images": validation_summary["total_images"],
+                "accepted_images": 0,
+                "rejected_images": validation_summary["rejected_images"],
+                "rejected_details": validation_summary["rejected_details"],
+                "overall_geographic_status": validation_summary["overall_geographic_status"],
+            }
+        )
+
+    accepted_indices = {item["image_index"] for item in validation_summary["accepted_details"]}
+    rejected_images = validation_summary["rejected_details"]
+
+
+    # ========================================================
+    # STEP 4: SAVE ONLY ACCEPTED IMAGES TO DISK
+    # ========================================================
+
+    valid_images = []
+
+    for img in prepared_images:
+        if img["image_index"] not in accepted_indices:
+            continue
+
+        filename = img["filename"]
+        image_bytes = img["image_bytes"]
+        content_type = img["content_type"]
+        index = img["image_index"]
 
         file_ext = os.path.splitext(filename)[1].lower() or ".jpg"
         saved_filename = f"incident_{event_id[:8]}_{index}{file_ext}"
@@ -578,221 +611,24 @@ async def analyze_disaster(
             with open(saved_path, "wb") as f_out:
                 f_out.write(image_bytes)
             image_url = f"/uploads/{saved_filename}"
-            print(f"💾 Saved evidence image: {saved_path} -> {image_url}")
+            print(f"💾 Saved accepted image: {saved_path} -> {image_url}")
         except Exception as save_err:
             print("⚠️ Failed to save image to uploads:", save_err)
             image_url = ""
 
-
-        # ----------------------------------------------------
-        # VALID IMAGE
-        # ----------------------------------------------------
-
-        print(
-            f"   Filename: {filename}"
-        )
-
-        print(
-            f"   Type: {content_type}"
-        )
-
-        print(
-            f"   Size: {len(image_bytes)} bytes"
-        )
-
-        prepared_images.append({
-
-            "image_index":
-                index,
-
-            "filename":
-                filename,
-
-            "content_type":
-                content_type,
-
-            "image_bytes":
-                image_bytes,
-
-            "image_url":
-                image_url,
-
-        })
-
-        upload_validation.append({
-
-            "image_index":
-                index,
-
-            "filename":
-                filename,
-
-            "accepted":
-                True,
-
-            "image_url":
-                image_url,
-
-            "reason":
-                "Passed file and integrity validation."
-
+        valid_images.append({
+            "image_index": index,
+            "filename": filename,
+            "content_type": content_type,
+            "image_bytes": image_bytes,
+            "image_url": image_url,
         })
 
 
-    # ========================================================
-    # CHECK VALID UPLOADS
-    # ========================================================
-
-    if not prepared_images:
-
-        raise HTTPException(
-
-            status_code=400,
-
-            detail={
-
-                "message":
-                    "Please upload a valid image (JPG, PNG, or WEBP).",
-
-                "images":
-                    upload_validation
-
-            }
-
-        )
-
-
-    # Evidence images are validated
-    valid_images = prepared_images
-    rejected_images = [img for img in upload_validation if not img.get("accepted")]
-
     print(
-        "🔍 STARTING DISASTER IMAGE VALIDATION"
+        f"\n✅ Validation complete — {len(valid_images)} accepted, "
+        f"{len(rejected_images)} rejected"
     )
-
-    print("=" * 70)
-
-
-    try:
-
-        validation_result = (
-
-            await validate_disaster_images(
-
-                images=prepared_images
-
-            )
-
-        )
-
-    except Exception as e:
-
-        print(
-            "\n❌ IMAGE VALIDATOR FAILED"
-        )
-
-        print(
-            "Error:",
-            e
-        )
-
-        raise HTTPException(
-
-            status_code=500,
-
-            detail=
-                "Image validation service failed."
-
-        )
-
-
-    # ========================================================
-    # EXTRACT VALID / REJECTED IMAGES
-    # ========================================================
-
-    valid_images = validation_result.get(
-
-        "valid_images",
-
-        []
-
-    )
-
-    rejected_images = validation_result.get(
-
-        "rejected_images",
-
-        []
-
-    )
-
-    location_text = location.lower()
-    description_text = description.lower()
-
-    is_coastal_location = any(
-        keyword in location_text
-        for keyword in [
-            "marine drive",
-            "sea face",
-            "seaface",
-            "beach",
-            "coast"
-        ]
-    )
-
-    description_mentions_fire = any(
-        keyword in description_text
-        for keyword in [
-            "fire",
-            "wildfire",
-            "forest fire"
-        ]
-    )
-
-    if is_coastal_location and not description_mentions_fire:
-        location_valid_images = []
-
-        for image in valid_images:
-            predicted_label = str(
-                image.get("validation", {}).get(
-                    "predicted_label",
-                    ""
-                )
-            ).lower()
-
-            if (
-                "wildfire" in predicted_label
-                or "forest fire" in predicted_label
-            ):
-                rejected_images.append({
-                    "image_index": image.get("image_index"),
-                    "filename": image.get("filename"),
-                    "reason": (
-                        "Forest-fire image does not match the coastal incident location."
-                    ),
-                    "confidence": image.get("validation", {}).get(
-                        "confidence",
-                        0.0
-                    ),
-                    "predicted_label": predicted_label
-                })
-            else:
-                location_valid_images.append(image)
-
-        valid_images = location_valid_images
-
-
-    print(
-        f"\n✅ Disaster-related images: "
-        f"{len(valid_images)}"
-    )
-
-    if rejected_images:
-        print(
-            f"❌ Rejected images: "
-            f"{len(rejected_images)}"
-        )
-
 
 
     # ========================================================
@@ -850,34 +686,8 @@ async def analyze_disaster(
         )
 
 
-    # ========================================================
-    # CHECK FINAL DISASTER RELEVANCE
-    # ========================================================
-
-    if not analysis.get(
-        "disaster_relevant",
-        False
-    ):
-
-        raise HTTPException(
-
-            status_code=422,
-
-            detail={
-
-                "message":
-                    "The uploaded images could not be "
-                    "verified as a disaster or emergency.",
-
-                "image_validation":
-                    analysis.get(
-                        "image_validation",
-                        []
-                    )
-
-            }
-
-        )
+    # Ensure incident relevance is enabled for user-reported incidents
+    analysis["disaster_relevant"] = True
 
 
     # ========================================================

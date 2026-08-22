@@ -31,10 +31,6 @@ export default function DisasterInputPanel({
   // STATE
   // ============================================================
 
-  const [disasterType, setDisasterType] = useState(
-    initialValues?.disasterType || "Flood"
-  );
-
   const [location, setLocation] = useState(
     initialValues?.location || ""
   );
@@ -93,10 +89,6 @@ export default function DisasterInputPanel({
   // ============================================================
 
   useEffect(() => {
-
-    if (initialValues?.disasterType !== undefined) {
-      setDisasterType(initialValues.disasterType || "Flood");
-    }
 
     if (initialValues?.location !== undefined) {
       setLocation(initialValues.location || "");
@@ -834,47 +826,27 @@ export default function DisasterInputPanel({
 
     const newErrors = {};
 
-    const trimmedLocation =
-      location.trim();
-
+    const trimmedLocation = location.trim();
+    const trimmedDescription = description.trim();
 
     if (!trimmedLocation) {
-
-      newErrors.location =
-        "Please enter the incident location.";
-
+      newErrors.location = "Please enter the incident location.";
     }
 
-
-    if (
-      !images ||
-      images.length === 0
-    ) {
-
-      newErrors.image =
-        "Please upload or capture at least one incident image.";
-
+    if (!images || images.length === 0) {
+      newErrors.image = "Please upload or capture at least one incident image as evidence.";
     }
 
-
-    if (
-      Object.keys(newErrors).length > 0
-    ) {
-
+    if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-
       return;
-
     }
-
 
     setErrors({});
 
-
     onAnalyze({
-      disasterType: disasterType,
       location: trimmedLocation,
-      description: description.trim(),
+      description: trimmedDescription,
       images: images,
     });
 
@@ -904,11 +876,11 @@ export default function DisasterInputPanel({
               <div>
 
                 <h3 className="text-lg font-bold text-white">
-                  Capture Incident Image
+                  Capture Incident Evidence
                 </h3>
 
                 <p className="text-xs text-slate-400 mt-1">
-                  Take a photograph and it will automatically be added to the incident images.
+                  Take a photograph and it will automatically be attached to the incident report.
                 </p>
 
               </div>
@@ -1008,12 +980,12 @@ export default function DisasterInputPanel({
 
           <div>
 
-            <h2 className="text-2xl font-bold text-white">
-              Report Disaster Incident
+            <h2 className="text-2xl font-bold text-white uppercase tracking-tight">
+              Report An Incident
             </h2>
 
             <p className="text-sm text-slate-400 mt-1">
-              Upload or capture incident images for AI-powered disaster analysis.
+              Describe what is happening naturally. SwarmAI multi-agent intelligence will analyze the situation and coordinate emergency response.
             </p>
 
           </div>
@@ -1063,6 +1035,55 @@ export default function DisasterInputPanel({
 
 
           {/* ================================================== */}
+          {/* DESCRIPTION (NATURAL LANGUAGE INCIDENT REPORTING) */}
+          {/* ================================================== */}
+
+          <div>
+
+            <label className="block text-sm font-semibold text-slate-200 mb-2">
+
+              Describe what is happening
+
+              <span className="text-xs text-slate-400 font-normal ml-2">
+                Optional
+              </span>
+
+            </label>
+
+
+            <textarea
+              value={description}
+              onChange={(event) => {
+                setDescription(event.target.value);
+                if (errors.description) {
+                  setErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.description;
+                    return next;
+                  });
+                }
+              }}
+              disabled={loading}
+              rows={4}
+              placeholder="Large fire spreading near several houses. Severe smoke is blocking the main road..."
+              className={`w-full px-4 py-3.5 rounded-xl bg-slate-900 border text-white placeholder:text-slate-500 outline-none focus:ring-2 resize-none transition duration-200 ${
+                errors.description
+                  ? "border-red-500 focus:ring-red-500/50"
+                  : "border-slate-800 focus:border-slate-600 focus:ring-slate-700/50"
+              }`}
+            />
+
+            {errors.description && (
+              <p className="text-xs text-red-400 flex items-center gap-1.5 pt-1.5">
+                <FaExclamationCircle />
+                {errors.description}
+              </p>
+            )}
+
+          </div>
+
+
+          {/* ================================================== */}
           {/* LOCATION */}
           {/* ================================================== */}
 
@@ -1078,7 +1099,7 @@ export default function DisasterInputPanel({
                 <FaMapMarkerAlt className="text-red-500 text-xs" />
 
                 <span>
-                  Incident Location
+                  Location
                 </span>
 
                 <span className="text-xs text-red-400 font-normal">
@@ -1106,7 +1127,7 @@ export default function DisasterInputPanel({
 
                   <>
                     <FaMapMarkerAlt className="text-[10px]" />
-                    <span>Use My Location</span>
+                    <span>Use current location</span>
                   </>
 
                 )}
@@ -1117,9 +1138,7 @@ export default function DisasterInputPanel({
 
 
             <p className="text-xs text-slate-400">
-
               City, district, landmark, or street address.
-
             </p>
 
 
@@ -1188,71 +1207,6 @@ export default function DisasterInputPanel({
               </p>
 
             )}
-
-          </div>
-
-
-          {/* ================================================== */}
-          {/* DISASTER TYPE */}
-          {/* ================================================== */}
-
-          <div className="space-y-2">
-
-            <label
-              htmlFor="disaster-type"
-              className="text-sm font-semibold text-slate-200 flex items-center gap-2"
-            >
-              <span>Disaster Type</span>
-            </label>
-
-            <select
-              id="disaster-type"
-              value={disasterType}
-              onChange={(event) => setDisasterType(event.target.value)}
-              disabled={loading}
-              className="w-full px-4 py-3.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-slate-600 focus:ring-2 focus:ring-slate-700/50 cursor-pointer"
-            >
-              <option value="Flood">Flood</option>
-              <option value="Building Fire">Building Fire</option>
-              <option value="Wildfire">Wildfire</option>
-              <option value="Earthquake">Earthquake</option>
-              <option value="Landslide">Landslide</option>
-              <option value="Severe Storm">Severe Storm</option>
-              <option value="Road Accident">Road Accident</option>
-              <option value="Structural Damage">Structural Damage / Collapse</option>
-              <option value="Other Emergency">Other Emergency</option>
-            </select>
-
-          </div>
-
-
-          {/* ================================================== */}
-          {/* DESCRIPTION */}
-          {/* ================================================== */}
-
-          <div>
-
-            <label className="block text-sm font-semibold text-slate-200 mb-2">
-
-              Incident Description
-
-              <span className="text-slate-500 font-normal">
-                {" "} (Optional)
-              </span>
-
-            </label>
-
-
-            <textarea
-              value={description}
-              onChange={(event) =>
-                setDescription(event.target.value)
-              }
-              disabled={loading}
-              rows={4}
-              placeholder="Describe what happened..."
-              className="w-full px-4 py-3.5 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder:text-slate-500 outline-none focus:border-slate-500 resize-none"
-            />
 
           </div>
 
