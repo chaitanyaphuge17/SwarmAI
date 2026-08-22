@@ -42,16 +42,6 @@ Our engine evaluates 4 distinct operational conflict vectors:
 #### 4. Audit Log & Real-Time Broadcast
 Once confirmed, delegations are persisted in MongoDB (`assignments_collection`) and broadcasted via WebSockets (`/ws/disaster`) to update all active command center dashboards instantly.
 
----
-
-## 🌐 Live Demo & Important Notice
-
-- **Live Application URL**: [https://swarmai-disaster-system.pages.dev/](https://swarmai-disaster-system.pages.dev/)
-
-> ⚠️ **Notice regarding Render Free-Tier Backend**:  
-> The backend server is hosted on Render's free tier. If inactive, the server automatically enters sleep mode. The initial request might take **30–60 seconds** to wake up. Once awake, the system operates seamlessly in real time.
-
----
 
 ## 🚀 Core Features
 
