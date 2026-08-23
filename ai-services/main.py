@@ -139,6 +139,8 @@ if env_origins:
         additional_origins
     )
 
+allowed_origins = list(dict.fromkeys(allowed_origins))
+
 
 print("\n🌐 ALLOWED CORS ORIGINS:")
 
