@@ -1,5 +1,6 @@
-import { FaRobot, FaUserShield, FaSignOutAlt } from "react-icons/fa";
+import { FaUserShield, FaSignOutAlt } from "react-icons/fa";
 import { useEffect, useState } from "react";
+import logo from "../assets/logo.png";
 
 export default function Navbar({ isAdminAuthenticated = false, onLogout = null, onHome = null }) {
   const [time, setTime] = useState(new Date());
@@ -20,35 +21,20 @@ export default function Navbar({ isAdminAuthenticated = false, onLogout = null, 
           onClick={onHome}
           className={`flex items-center gap-3.5 ${onHome ? "cursor-pointer group" : ""}`}
         >
-          <div className="
-            w-10
-            h-10
-            rounded-xl
-            bg-gradient-to-tr
-            from-blue-600
-            via-indigo-600
-            to-blue-700
-            text-white
-            flex
-            items-center
-            justify-center
-            shadow-md
-            shadow-blue-500/25
-            transition-transform
-            duration-200
-            group-hover:scale-105
-          ">
-            <FaRobot size={20} />
-          </div>
+          <img
+  src={logo}
+  alt="SwarmAI"
+  className="w-12 h-12 object-contain transition-transform duration-200 group-hover:scale-105"
+/>
 
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-extrabold text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
                 SwarmAI
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 text-[10px] font-bold font-mono uppercase tracking-wider">
+              {/* <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 text-[10px] font-bold font-mono uppercase tracking-wider">
                 PRO INTEL
-              </span>
+              </span> */}
             </div>
 
             <p className="text-xs text-slate-500 hidden sm:block font-medium">
@@ -62,10 +48,10 @@ export default function Navbar({ isAdminAuthenticated = false, onLogout = null, 
           {/* Admin Command Center Badge */}
           {isAdminAuthenticated && (
             <div className="flex items-center gap-2.5 pr-4 border-r border-slate-200">
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-xs font-mono font-bold shadow-2xs">
+              {/* <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-xs font-mono font-bold shadow-2xs">
                 <FaUserShield className="text-xs text-blue-600" />
                 COMMAND CENTER
-              </span>
+              </span> */}
               {onLogout && (
                 <button
                   type="button"
@@ -82,7 +68,7 @@ export default function Navbar({ isAdminAuthenticated = false, onLogout = null, 
 
           {/* System Live Pill & Clock */}
           <div className="text-right">
-            <div className="flex items-center gap-1.5 justify-end">
+            {/* <div className="flex items-center gap-1.5 justify-end">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -90,7 +76,7 @@ export default function Navbar({ isAdminAuthenticated = false, onLogout = null, 
               <p className="text-[10px] uppercase tracking-wider text-slate-400 font-mono font-bold">
                 System Active
               </p>
-            </div>
+            </div> */}
 
             <p className="text-xs font-extrabold text-slate-900 font-mono mt-0.5 tracking-tight">
               {time.toLocaleTimeString()}

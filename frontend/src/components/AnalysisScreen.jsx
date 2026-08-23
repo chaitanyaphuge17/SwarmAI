@@ -1,13 +1,13 @@
 import { motion, useReducedMotion } from "framer-motion";
 import {
   FaMapMarkerAlt,
-  FaShieldAlt,
   FaSearch,
   FaChartLine,
   FaHistory,
   FaClipboardList,
   FaSpinner,
 } from "react-icons/fa";
+import logo from "../assets/logo.png";
 
 export default function AnalysisScreen({ location = "" }) {
   const shouldReduceMotion = useReducedMotion();
@@ -67,17 +67,25 @@ export default function AnalysisScreen({ location = "" }) {
     <div className="w-full max-w-4xl mx-auto py-6 px-4">
       {/* Top Processing Emblem & Location */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 text-center relative overflow-hidden shadow-sm">
-        {/* Central Pulse Indicator */}
+
+        {/* Central Logo Pulse Indicator */}
         <div className="relative flex items-center justify-center my-3">
+          {/* Animated Ring */}
           <motion.div
             animate={ringAnimation}
-            className="absolute w-20 h-20 rounded-full border border-blue-400/40"
+            className="absolute w-24 h-24 rounded-full border border-blue-400/40"
           />
+
+          {/* Logo */}
           <motion.div
             animate={pulseAnimation}
-            className="w-16 h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20 border border-blue-500 z-10"
+            className="z-10"
           >
-            <FaShieldAlt className="text-2xl" />
+            <img
+              src={logo}
+              alt="SwarmAI"
+              className="w-20 h-20 object-contain"
+            />
           </motion.div>
         </div>
 
@@ -86,7 +94,8 @@ export default function AnalysisScreen({ location = "" }) {
         </h2>
 
         <p className="text-sm text-gray-500 mt-2 max-w-xl mx-auto">
-          Coordinating multi-modal analysis, disaster memory correlation, and emergency response planning.
+          Coordinating multi-modal analysis, disaster memory correlation, and
+          emergency response planning.
         </p>
 
         {/* Incident Target Badge */}
@@ -104,10 +113,12 @@ export default function AnalysisScreen({ location = "" }) {
         <div className="flex items-center justify-between pb-3 border-b border-gray-200">
           <div className="flex items-center gap-2">
             <FaSpinner className="animate-spin text-blue-600 text-sm" />
+
             <span className="text-xs font-bold uppercase tracking-wider text-gray-900">
               Analysis Workflow
             </span>
           </div>
+
           <span className="text-xs text-gray-400 font-mono">
             Live Execution
           </span>
@@ -122,15 +133,18 @@ export default function AnalysisScreen({ location = "" }) {
               <div className="p-2.5 rounded-xl bg-white border border-gray-200 shrink-0 mt-0.5 shadow-2xs">
                 {step.icon}
               </div>
+
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono text-gray-400 font-bold">
                     0{step.id}
                   </span>
+
                   <h3 className="text-sm font-bold text-gray-900 truncate">
                     {step.title}
                   </h3>
                 </div>
+
                 <p className="text-xs text-gray-500 mt-1 leading-relaxed">
                   {step.desc}
                 </p>
@@ -141,7 +155,8 @@ export default function AnalysisScreen({ location = "" }) {
 
         <div className="pt-4 border-t border-gray-200 text-center">
           <p className="text-xs text-gray-500">
-            Analysis is processing on the backend. Your actionable disaster response will load automatically upon completion.
+            Analysis is processing on the backend. Your actionable disaster
+            response will load automatically upon completion.
           </p>
         </div>
       </div>

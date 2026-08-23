@@ -85,8 +85,8 @@ Once confirmed, delegations are persisted in MongoDB (`assignments_collection`) 
 
 | Layer | Technologies |
 | :--- | :--- |
-| **Frontend** | React 18, Vite, Tailwind CSS, Framer Motion, React Icons, MapLibre GL |
-| **Backend** | Python 3.11, FastAPI, WebSockets, Uvicorn, Motor / PyMongo |
+| **Frontend** | React 19, Vite, Tailwind CSS, Framer Motion, React Icons, MapLibre GL |
+| **Backend** | Python 3.11, FastAPI, WebSockets, Uvicorn, PyMongo |
 | **AI / Swarm** | LangGraph, Groq LLM / Vision API, OpenRouteService API |
 | **Database** | MongoDB Atlas |
 | **External Services** | Twilio SMS API, Cloudinary Image Storage |
@@ -100,121 +100,185 @@ swarm-ai/
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── AdminCommandCenter.jsx   # Top-level Admin Command View
-│   │   │   ├── AgentWorkflowPanel.jsx   # Graph topology, Story view & timeline log
-│   │   │   ├── DelegationPanel.jsx      # Round 2 Delegation & Conflict form
-│   │   │   ├── ConflictModal.jsx        # Conflict detection warning modal
-│   │   │   ├── ConflictBadge.jsx        # Dynamic conflict severity indicator
-│   │   │   ├── MapDashboard.jsx         # MapLibre GL interactive operational map
-│   │   │   └── ResponseView.jsx         # Live incident response simulation view
-│   │   └── services/
-│   │       └── adminService.js          # API clients for workflow & delegation
-│   └── package.json
+│   │   ├── context/                  # Shared React state
+│   │   ├── hooks/                    # Dashboard and browser integration hooks
+│   │   ├── models/                   # Frontend data models
+│   │   ├── pages/                    # Application pages
+│   │   └── services/                 # Axios, admin, disaster, simulation, WebSocket
+│   ├── public/                       # Static frontend assets
+│   ├── package.json                  # npm scripts and dependencies
+│   ├── vite.config.js                # Vite, React, and Tailwind configuration
+│   └── eslint.config.js              # ESLint configuration
 │
-├── ai-services/
+├── ai-services/                     # FastAPI backend and Python services
 │   ├── agents/
-│   │   ├── emergency_agent.py           # Emergency analysis & severity rating
-│   │   ├── medical_agent.py             # Casualty triage & medical routing
-│   │   ├── traffic_agent.py             # Route calculation & obstruction check
-│   │   └── resource_agent.py            # Unit deployment & supply allocation
-│   ├── api/
-│   │   ├── delegation_routes.py         # Conflict check & delegation endpoints
-│   │   └── workflow_routes.py           # Incident summary & graph topology endpoints
-│   ├── orchestrator/
-│   │   └── langgraph_orchestrator.py    # Multi-agent LangGraph state graph
-│   ├── services/
-│   │   ├── conflict_checker.py          # Round 2 Conflict Detection Engine
-│   │   ├── image_validator.py           # Groq VLM image verification
-│   │   └── sms_service.py               # Twilio SMS notification dispatch
-│   ├── database/
-│   │   └── mongodb.py                   # Async MongoDB client & collection handlers
-│   └── main.py                          # FastAPI server & WebSocket manager
-└── README.md
+│   ├── api/                          # HTTP and WebSocket route modules
+│   ├── config/                       # Settings and geographic rules
+│   ├── database/                     # MongoDB client, collections, indexes
+│   ├── logs/                         # Runtime logs
+│   ├── orchestrator/                 # Main and LangGraph orchestrators
+│   ├── scenarios/                    # Reusable disaster scenarios
+│   ├── schemas/                      # Request and response schemas
+│   ├── scripts/                      # Database maintenance scripts
+│   ├── services/                     # AI, validation, routing, simulation, integrations
+│   ├── shared/                       # Context, memory, maps, logging, streams, agents
+│   ├── simulation/                   # Disaster and vehicle simulation support
+│   ├── uploads/                      # Evidence images served at /uploads
+│   ├── websocket/                    # WebSocket support modules
+│   ├── requirements.txt              # Python dependencies
+│   └── test_*.py                     # Backend tests
+├── .gitignore
+├── frontend.zip                      # Archived frontend copy
+└── readme.md
 ```
+
+Local runtime artifacts such as `__pycache__`, `node_modules`, `.venv`, uploaded images, and `.env` files may also appear. They are environment-specific and are ignored or generated during development.
 
 ---
 
 ## ⚡ Quick Start Guide
 
 ### Prerequisites
-- Python 3.10+
-- Node.js 18+
-- MongoDB instance (local or Atlas)
+- Python 3.10+ (3.11 recommended)
+- Node.js 18+ and npm
+- Reachable MongoDB instance (local or Atlas)
+- Groq API key
+- MapTiler API key for the map view
+- Optional: OpenRouteService, Cloudinary, and Twilio credentials
 
 ### 1. Backend Setup
 
-```bash
-cd ai-services
+```powershell
+cd C:\Users\Admin\Desktop\swarm-ai\ai-services
 
 # Create and activate virtual environment
 python -m venv .venv
-# On Windows:
-.venv\Scripts\activate
-# On Linux/macOS:
-source .venv/bin/activate
+# On Windows PowerShell:
+.\.venv\Scripts\Activate.ps1
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Create .env file
-cat <<EOT > .env
+```
+
+Create `ai-services/.env` before starting the server:
+
+```dotenv
+MONGODB_URI=mongodb://127.0.0.1:27017
+MONGODB_DATABASE=swarmai
 GROQ_API_KEY=your_groq_api_key
-MONGODB_URI=your_mongodb_uri
+ORS_API_KEY=your_openrouteservice_key
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_cloudinary_key
+CLOUDINARY_API_SECRET=your_cloudinary_secret
 TWILIO_ACCOUNT_SID=your_twilio_sid
 TWILIO_AUTH_TOKEN=your_twilio_token
 TWILIO_PHONE_NUMBER=your_twilio_phone
-ORS_API_KEY=your_openrouteservice_key
-EOT
+ADMIN_PHONE_NUMBER=your_admin_phone
+```
 
-# Start FastAPI server
+`MONGODB_URI` and `GROQ_API_KEY` are required. The other values enable optional features. Never commit `.env` or real credentials.
+
+Start the FastAPI server:
+
+```powershell
 python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
-Backend API will run at `http://127.0.0.1:8000`
+
+Backend API: `http://127.0.0.1:8000`.
+
+If PowerShell blocks activation, use Command Prompt:
+
+```bat
+cd C:\Users\Admin\Desktop\swarm-ai\ai-services
+.venv\Scripts\activate.bat
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
 
 ---
 
 ### 2. Frontend Setup
 
-```bash
-cd frontend
+```powershell
+cd C:\Users\Admin\Desktop\swarm-ai\frontend
 
 # Install dependencies
 npm install
 
-# Create .env file
-cat <<EOT > .env
+```
+
+Create `frontend/.env`:
+
+```dotenv
 VITE_BACKEND_URL=http://127.0.0.1:8000
 VITE_MAPTILER_KEY=your_maptiler_api_key
-EOT
+```
 
-# Start Vite dev server
+Start Vite:
+
+```powershell
 npm run dev
 ```
-Frontend application will run at `http://localhost:5173`
+
+Frontend application will normally run at `http://localhost:5173`.
+
+### 3. Verify localhost connectivity
+
+Open these URLs while both terminals are running:
+
+- API root: `http://127.0.0.1:8000/`
+- Health check: `http://127.0.0.1:8000/health`
+- Swagger UI: `http://127.0.0.1:8000/docs`
+- ReDoc: `http://127.0.0.1:8000/redoc`
+- Frontend: `http://localhost:5173`
+
+The backend already allows `http://localhost:5173` and `http://127.0.0.1:5173` through CORS. The frontend has no Vite proxy; Axios and WebSocket requests connect directly to `VITE_BACKEND_URL`. The live WebSocket URL is `ws://127.0.0.1:8000/ws/disaster`.
+
+If the browser reports a CORS or connection error, confirm both processes are running, confirm the backend URL in `frontend/.env`, and restart Vite after changing that file. Additional browser origins can be added as a comma-separated `ALLOWED_ORIGINS` value in `ai-services/.env`.
 
 ---
 
 ## 🧪 Verification & Testing
 
+### Backend tests
+
+Run the complete backend suite from `ai-services`:
+
+```powershell
+cd C:\Users\Admin\Desktop\swarm-ai\ai-services
+python -m pytest
+```
+
 ### Running Round 2 End-to-End Conflict Verification
 We provide an automated verification suite testing conflict detection across schedule overlaps, resource reservation collisions, duplicate tasks, and capacity thresholds:
 
-```bash
-cd ai-services
+```powershell
+cd C:\Users\Admin\Desktop\swarm-ai\ai-services
 python test_round2_e2e.py
 ```
 
-### Running Frontend Build Check
-```bash
-cd frontend
+### Frontend checks
+
+```powershell
+cd C:\Users\Admin\Desktop\swarm-ai\frontend
+npm run lint
 npm run build
 ```
 
 ---
 
-## 🛡️ License
+## 🔌 Main API Surfaces
 
-Distributed under the MIT License. See `LICENSE` for more information.
+- `/dashboard/data` and `/agents/status` for dashboard and agent state.
+- `/disaster/analyze` for disaster analysis and `/route` for optional routing.
+- `/scenario/...` and `/simulation/start` for scenarios and simulations.
+- `/api/auth/...`, `/api/incidents/...`, and `/api/notifications/...` for admin operations.
+- `/api/delegation/...` and `/api/delegation-teams` for conflict checks and assignments.
+- `/api/incidents/{incident_id}/workflow/...` for workflow events, summaries, and graphs.
+- `/uploads/...` for locally served evidence images.
+- `/ws/disaster` for real-time updates.
+
+The default admin credentials are `admin` / `swarmadmin2026` unless `ADMIN_USERNAME` and `ADMIN_PASSWORD` are set in `ai-services/.env`. Change these values before exposing the backend beyond localhost.
 
 ---
 
